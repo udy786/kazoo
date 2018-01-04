@@ -8284,6 +8284,12 @@
                 "Billing-Seconds": {
                     "type": "string"
                 },
+                "Bridge-Hangup-Cause": {
+                    "type": "string"
+                },
+                "Call-Debug": {
+                    "type": "object"
+                },
                 "Call-Direction": {
                     "type": "string"
                 },
@@ -9524,6 +9530,12 @@
                     "type": "string"
                 },
                 "Participant-ID": {
+                    "type": "string"
+                },
+                "Switch-Hostname": {
+                    "type": "string"
+                },
+                "Switch-URL": {
                     "type": "string"
                 }
             },
@@ -20633,6 +20645,12 @@
                 "Billing-Seconds": {
                     "type": "string"
                 },
+                "Bridge-Hangup-Cause": {
+                    "type": "string"
+                },
+                "Call-Debug": {
+                    "type": "string"
+                },
                 "Call-Direction": {
                     "type": "string"
                 },
@@ -20877,6 +20895,12 @@
                     "type": "string"
                 },
                 "Billing-Seconds": {
+                    "type": "string"
+                },
+                "Bridge-Hangup-Cause": {
+                    "type": "string"
+                },
+                "Call-Debug": {
                     "type": "string"
                 },
                 "Call-Direction": {
@@ -21480,6 +21504,9 @@
             "description": "AMQP API for route.win",
             "properties": {
                 "Call-ID": {
+                    "type": "string"
+                },
+                "Control-PID": {
                     "type": "string"
                 },
                 "Control-Queue": {
@@ -27008,6 +27035,11 @@
                     },
                     "type": "object"
                 },
+                "callflow_listeners": {
+                    "default": 1,
+                    "description": "callflow callflow_listeners",
+                    "type": "integer"
+                },
                 "calls_consume_tokens": {
                     "default": true,
                     "description": "callflow calls consume tokens",
@@ -27075,6 +27107,11 @@
                     "default": "",
                     "description": "callflow singular call hook url",
                     "type": "string"
+                },
+                "use_auto_ack": {
+                    "default": false,
+                    "description": "callflow use_auto_ack",
+                    "type": "boolean"
                 },
                 "voicemail": {
                     "properties": {
@@ -28571,6 +28608,11 @@
                     "default": "context_2",
                     "description": "ecallmgr freeswitch context",
                     "type": "string"
+                },
+                "fs_call_control_workers": {
+                    "default": 5,
+                    "description": "ecallmgr fs_call_control_workers",
+                    "type": "integer"
                 },
                 "fs_cmds": {
                     "default": [
