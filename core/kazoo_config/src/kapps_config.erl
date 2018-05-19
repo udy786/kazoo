@@ -1022,6 +1022,18 @@ fetch_category(Category, 'false') ->
         ,{{<<"fax">>, <<"conversion_command">>}
          ,{<<"fax">>, <<"conversion_pdf_command">>}
          }
+        ,{{<<"fax">>, <<"conversion_pdf_command">>}
+         ,{<<"kazoo_convert">>, <<"convert_pdf_command">>}
+         }
+        ,{{<<"fax">>, <<"conversion_image_command">>}
+         ,{<<"kazoo_convert">>, <<"convert_image_command">>}
+         }
+        ,{{<<"fax">>, <<"openoffice_server">>}
+         ,{<<"kazoo_convert">>, <<"openoffice_server">>}
+         }
+        ,{{<<"fax">>, <<"file_cache_path">>}
+         ,{<<"kazoo_convert">>, <<"file_cache_path">>}
+         }
 
         ,{{<<"media">>, <<"tts_cache">>}
          ,{<<"speech">>, <<"tts_cache">>}
