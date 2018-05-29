@@ -10,7 +10,7 @@
 
 %% API
 -export([start_link/0
-        ,convert/2
+        ,add/2
         ]).
 
 %% gen_server callbacks
@@ -27,10 +27,12 @@
 
 -define(SERVER, {'local', ?MODULE}).
 
--define(TIMEOUT_LIFETIME, 600 * ?MILLISECONDS_IN_SECOND).
--define(TIMEOUT_MESSAGE, {'$kz_openoffice_server', 'file_timeout'}).
+-define(TIMEOUT_LIFETIME, ?MILLISECONDS_IN_SECOND).
+-define(TIMEOUT_CANCEL_JOB, 120 * ?MILLISECONDS_IN_SECOND).
+-define(TIMEOUT_DEQUEUE, 'dequeue').
+-define(TIMEOUT_CANCEL, 'cancel_job').
 
--record(state, {queue :: list()
+-record(state, {queue = queue:new() :: queue:queue()
                ,timer_ref ::  reference()
                }).
 -type state() :: #state{}.
@@ -56,9 +58,9 @@ start_link() ->
 %% serialization mechanism for conversions from openoffice formats.
 %% @end
 %%------------------------------------------------------------------------------
--spec convert(kz_term:ne_binary(), map()) -> {'ok', kz_term:ne_binary()}|{'error', kz_term:ne_binary()}.
-convert(Source, Options) ->
-    gen_server:call(?MODULE, {'convert', Source, Options}, ?TIMEOUT_LIFETIME).
+-spec add(kz_term:ne_binary(), map()) -> {'ok', kz_term:ne_binary()}|{'error', kz_term:ne_binary()}.
+add(Source, Options) ->
+    gen_server:call(?MODULE, {'add', Source, Options}).
 
 %%%=============================================================================
 %%% gen_server callbacks
@@ -71,7 +73,9 @@ convert(Source, Options) ->
 -spec init(list()) -> {'ok', state()} |
                       {'stop', any()}.
 init([]) ->
-    {'ok', #state{}}.
+    {'ok', #state{
+     'timer_ref' = start_timer(?TIMEOUT_DEQUEUE)
+    }}.
 
 %%------------------------------------------------------------------------------
 %% @doc Handling call messages.
@@ -79,10 +83,11 @@ init([]) ->
 %%------------------------------------------------------------------------------
 -spec handle_call({atom(), {'file', kz_term:ne_binary()}, map()}, kz_term:pid_ref(), state()) ->
                          kz_types:handle_call_ret_state(state()).
-handle_call(stop, _From, #state{} = State) ->
-    {stop, normal, ok, State};
-handle_call({'convert', Source, Options}, _From, State) ->
-    {'reply', openoffice_to_pdf(Source, Options), State}.
+handle_call('stop', _From, #state{} = State) ->
+    {'stop', 'normal', 'ok', State};
+handle_call({'add', Content, Options}, From, #state{queue=Queue}=State) ->
+    DropTimerRef = start_timer(?TIMEOUT_CANCEL),
+    {'noreply', State#state{queue=queue:in({DropTimerRef, From, Content, Options}, Queue)}}.
 
 %%------------------------------------------------------------------------------
 %% @doc Handling cast messages.
@@ -97,8 +102,20 @@ handle_cast(_Msg, State) ->
 %% @end
 %%------------------------------------------------------------------------------
 -spec handle_info(any(), state()) -> kz_types:handle_info_ret_state(state()).
-handle_info({'timeout', TRef, ?TIMEOUT_MESSAGE}, #state{timer_ref=TRef}=State) ->
-    {'stop', 'normal', State};
+handle_info({'timeout', TRef, ?TIMEOUT_DEQUEUE}, #state{queue=Queue, timer_ref=TRef}=State) ->
+    case queue:out(Queue) of
+        {'empty', _} ->
+            {'noreply', State#state{timer_ref=start_timer(?TIMEOUT_DEQUEUE)}};
+        {{'value', {DropTimerRef, From, Content, Options}}, NewQueue} ->
+            _ = erlang:cancel_timer(DropTimerRef),
+            gen_server:reply(From, kz_fax_converter:do_openoffice_to_pdf(Content, Options)),
+            {'noreply', State#state{timer_ref=start_timer(?TIMEOUT_DEQUEUE), queue=NewQueue}}
+    end;
+handle_info({'timeout', DropTimerRef, ?TIMEOUT_CANCEL}, #state{queue=Queue}=State) ->
+    Fun = fun({TimerRef, _, _, _}) when DropTimerRef =:= TimerRef -> false;
+             (_) -> true
+          end,
+    {'noreply', State#state{queue=queue:filter(Fun, Queue)}};
 handle_info(_Info, State) ->
     lager:debug("unhandled message: ~p", [_Info]),
     {'noreply', State, 'hibernate'}.
@@ -112,7 +129,8 @@ handle_info(_Info, State) ->
 %% @end
 %%------------------------------------------------------------------------------
 -spec terminate(any(), state()) -> 'ok'.
-terminate(_Reason, _State) ->
+terminate(_Reason, #state{timer_ref=TimerRef}) ->
+    stop_timer(TimerRef),
     lager:debug("openoffice_server going down: ~p", [_Reason]).
 
 %%------------------------------------------------------------------------------
@@ -131,29 +149,14 @@ code_change(_OldVsn, State, _Extra) ->
 %% @doc
 %% @end
 %%------------------------------------------------------------------------------
-%%-spec start_timer() -> reference().
-%%start_timer() ->
-%%    erlang:start_timer(?TIMEOUT_LIFETIME, self(), ?TIMEOUT_MESSAGE).
-%%
-%%-spec stop_timer(reference()) -> integer() | boolean() | 'ok'.
-%%stop_timer(Ref) ->
-%%    erlang:cancel_timer(Ref).
+-spec start_timer(atom()) -> reference().
+start_timer(?TIMEOUT_DEQUEUE) ->
+    erlang:start_timer(?TIMEOUT_LIFETIME, self(), ?TIMEOUT_DEQUEUE);
+start_timer(?TIMEOUT_CANCEL) ->
+    erlang:start_timer(?TIMEOUT_CANCEL_JOB, self(), ?TIMEOUT_CANCEL).
 
--spec openoffice_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
-openoffice_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
-    ToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
-    Command = io_lib:format(?CONVERT_OO_COMMAND, [?OPENOFFICE_SERVER, ToPath, FromPath]),
-    lager:debug("converting file ~s to ~s with command: ~s", [FromPath, ToPath, Command]),
-    try os:cmd(Command) of
-        "success" ->
-            {'ok', ToPath};
-        Else ->
-            lager:debug("could not convert file ~s error: ~p", [FromPath, Else]),
-            kz_util:delete_file(ToPath),
-            {'error', <<"failed to convert">>}
-    catch
-        Else ->
-            lager:debug("could not convert file ~s error: ~p", [FromPath, Else]),
-            kz_util:delete_file(ToPath),
-            {'error', <<"error on convert">>}
-    end.
+
+-spec stop_timer(reference()) -> integer() | boolean() | 'ok'.
+stop_timer(Ref) ->
+    erlang:cancel_timer(Ref).
+

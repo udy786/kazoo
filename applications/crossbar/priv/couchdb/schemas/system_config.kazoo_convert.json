@@ -1,0 +1,18 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "_id": "system_config.kazoo_convert",
+    "description": "Schema for kazoo_convert system_config",
+    "properties": {
+        "fax_converter": {
+            "default": "fax_converter",
+            "description": "kazoo_convert fax_converter",
+            "type": "string"
+        },
+        "file_cache_path": {
+            "default": "/tmp/",
+            "description": "kazoo_convert file_cache_path",
+            "type": "string"
+        }
+    },
+    "type": "object"
+}

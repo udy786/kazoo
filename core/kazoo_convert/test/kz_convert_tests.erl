@@ -11,30 +11,40 @@
 
 fax_test_() ->
     {setup
-    ,fun kzd_test_fixtures:setup/0
-    ,fun kzd_test_fixtures:cleanup/1
+    ,fun setup/0
+    ,fun cleanup/1
     ,fun(_) ->
-             [test_tiff_to_pdf_binary()
-             ,test_tiff_to_pdf_tuple()
-             ,test_tiff_to_tiff_binary()
-             ,test_tiff_to_tiff_tuple()
-             ,test_pdf_to_tiff_binary()
-             ,test_pdf_to_tiff_tuple()
-             ,test_openoffice_to_pdf_binary()
-             ,test_openoffice_to_pdf_tuple()
-             ,test_openoffice_to_tiff_binary()
-             ,test_openoffice_to_tiff_tuple()
+             [tiff_to_pdf_binary()
+             ,tiff_to_pdf_tuple()
+             ,tiff_to_tiff_binary()
+             ,tiff_to_tiff_tuple()
+             ,pdf_to_tiff_binary()
+             ,pdf_to_tiff_tuple()
+             ,openoffice_to_pdf_binary()
+             ,openoffice_to_pdf_tuple()
+             ,openoffice_to_tiff_binary()
+             ,openoffice_to_tiff_tuple()
              ]
      end
     }.
+
+setup() ->
+    LinkPid = kzd_test_fixtures:setup(),
+    _ = application:start(kazoo_convert),
+    LinkPid.
+
+cleanup(LinkPid) ->
+    kzd_test_fixtures:cleanup(LinkPid),
+    application:stop(kazoo_convert).
 
 read_test_file(Filename) ->
     {'ok', Content} = file:read_file(get_path_to_fixture(Filename)),
     Content.
 
 copy_fixture_to_tmp(Filename) ->
+    JobId = kz_binary:rand_hex(16),
     SrcFile = get_path_to_fixture(Filename),
-    DstFile = kz_term:to_binary(["/tmp/", filename:basename(Filename)]),
+    DstFile = kz_term:to_binary(["/tmp/", JobId, filename:extension(Filename) ]),
     {'ok', _} = file:copy(SrcFile, DstFile),
     DstFile.
 
@@ -45,43 +55,45 @@ get_path_to_fixture(Filename) ->
             kz_term:to_binary([PrivPath, "/media_files/", Filename])
     end.
 
-test_tiff_to_pdf_binary() ->
+tiff_to_pdf_binary() ->
     JobId = kz_binary:rand_hex(16),
     From = read_test_file("valid-multipage.tiff"),
     Expected = <<"/tmp/", JobId/binary, ".pdf" >>,
     [?_assertMatch({'ok', Expected}, kz_convert:fax(<<"image/tiff">>, <<"application/pdf">>, From, [{<<"job_id">>, JobId}]))].
 
-test_tiff_to_pdf_tuple() ->
+tiff_to_pdf_tuple() ->
     JobId = kz_binary:rand_hex(16),
     Src = copy_fixture_to_tmp("valid-multipage.tiff"),
     Expected = <<"/tmp/", JobId/binary, ".pdf" >>,
     [?_assertMatch({'ok', Expected}, kz_convert:fax(<<"image/tiff">>, <<"application/pdf">>, {'file', Src}, [{<<"job_id">>, JobId}]))].
 
-test_tiff_to_tiff_binary() ->
+tiff_to_tiff_binary() ->
     JobId = kz_binary:rand_hex(16),
-    From = read_test_file("valid-multipage.tiff"),
+    From = read_test_file("valid.tiff"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
-    [?_assertMatch({'ok', Expected}, kz_convert:fax(<<"image/tiff">>, <<"image/tiff">>, From, [{<<"job_id">>, JobId}]))].
+    %% [?_assertMatch({'ok', Expected}, kz_convert:fax(<<"image/tiff">>, <<"image/tiff">>, From, [{<<"job_id">>, JobId}]))].
+    {'timeout', 120, ?_assertMatch({'ok', Expected}, kz_convert:fax(<<"image/tiff">>, <<"image/tiff">>, From, [{<<"job_id">>, JobId}]))}.
 
-test_tiff_to_tiff_tuple() ->
+tiff_to_tiff_tuple() ->
     JobId = kz_binary:rand_hex(16),
-    Src = copy_fixture_to_tmp("valid-multipage.tiff"),
+    Src = copy_fixture_to_tmp("valid.tiff"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
-    [?_assertMatch({'ok', Expected}, kz_convert:fax(<<"image/tiff">>, <<"image/tiff">>, {'file', Src}, [{<<"job_id">>, JobId}]))].
+    %% [?_assertMatch({'ok', Expected}, kz_convert:fax(<<"image/tiff">>, <<"image/tiff">>, {'file', Src}, [{<<"job_id">>, JobId}]))].
+    {'timeout', 120, ?_assertMatch({'ok', Expected}, kz_convert:fax(<<"image/tiff">>, <<"image/tiff">>, {'file', Src}, [{<<"job_id">>, JobId}]))}.
 
-test_pdf_to_tiff_binary() ->
+pdf_to_tiff_binary() ->
     JobId = kz_binary:rand_hex(16),
     From = read_test_file("valid.pdf"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
     [?_assertMatch({'ok', Expected}, kz_convert:fax(<<"application/pdf">>, <<"image/tiff">>, From, [{<<"job_id">>, JobId}]))].
 
-test_pdf_to_tiff_tuple() ->
+pdf_to_tiff_tuple() ->
     JobId = kz_binary:rand_hex(16),
     Src = copy_fixture_to_tmp("valid.pdf"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
     [?_assertMatch({'ok', Expected}, kz_convert:fax(<<"application/pdf">>, <<"image/tiff">>, {'file', Src}, [{<<"job_id">>, JobId}]))].
 
-test_openoffice_to_pdf_binary() ->
+openoffice_to_pdf_binary() ->
     kz_openoffice_server_sup:start_link(),
     JobId = kz_binary:rand_hex(16),
     From = read_test_file("valid.docx"),
@@ -94,7 +106,7 @@ test_openoffice_to_pdf_binary() ->
                                          )
                   )].
 
-test_openoffice_to_pdf_tuple() ->
+openoffice_to_pdf_tuple() ->
     JobId = kz_binary:rand_hex(16),
     Src = copy_fixture_to_tmp("valid.docx"),
     Expected = <<"/tmp/", JobId/binary, ".pdf" >>,
@@ -106,7 +118,7 @@ test_openoffice_to_pdf_tuple() ->
                                                     )
                   )].
 
-test_openoffice_to_tiff_binary() ->
+openoffice_to_tiff_binary() ->
     JobId = kz_binary:rand_hex(16),
     From = read_test_file("valid.docx"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
@@ -118,7 +130,7 @@ test_openoffice_to_tiff_binary() ->
                                          )
                   )].
 
-test_openoffice_to_tiff_tuple() ->
+openoffice_to_tiff_tuple() ->
     JobId = kz_binary:rand_hex(16),
     Src = copy_fixture_to_tmp("valid.docx"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,

@@ -6,7 +6,7 @@
 -module(kz_fax_converter).
 
 -export([convert/4
-        ,validate_file/1
+        ,do_openoffice_to_pdf/2
         ]).
 
 -include_lib("kazoo_convert/include/kz_convert.hrl").
@@ -60,15 +60,15 @@ eval_format(?PDF_MIME, ?TIFF_MIME) ->
     [fun pdf_to_tiff/2
     ];
 eval_format(<<?OPENXML_MIME_PREFIX, _/binary>>, ?TIFF_MIME) ->
-    [fun serialize_openoffice_to_pdf/2
+    [fun openoffice_to_pdf/2
     ,fun pdf_to_tiff/2
     ];
 eval_format(CT, ?TIFF_MIME) when ?OPENOFFICE_COMPATIBLE(CT) ->
-    [fun serialize_openoffice_to_pdf/2
+    [fun openoffice_to_pdf/2
     ,fun pdf_to_tiff/2
     ];
 eval_format(<<?OPENXML_MIME_PREFIX, _/binary>>, ?PDF_MIME) ->
-    [fun serialize_openoffice_to_pdf/2
+    [fun openoffice_to_pdf/2
     ];
 eval_format(CT, ?PDF_MIME) when ?OPENOFFICE_COMPATIBLE(CT) ->
     [fun openoffice_to_pdf/2
@@ -118,8 +118,6 @@ maybe_delete_previous_file(Filename, Filename) ->
 maybe_delete_previous_file(OldFilename, _NewFilename) ->
     kz_util:delete_file(OldFilename).
 
-
-
 -spec save_file({'file', kz_term:ne_binary()}|kz_term:ne_binary(), map()) -> kz_term:ne_binary().
 save_file({'file', FilePath}, _Options) ->
     FilePath;
@@ -133,129 +131,109 @@ save_file(Content, #{<<"tmp_dir">> := TmpDir
     OutputFile.
 
 -spec image_to_tiff(kz_term:ne_binary(), {atom(), kz_term:ne_binary()}, map()) -> {atom(), kz_term:ne_binary()}.
-image_to_tiff(SubType, FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
+image_to_tiff(_SubType, FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
     ToPath = filename:join(TmpDir, [JobId, <<".tiff">>]),
     Cmd = io_lib:format(?CONVERT_IMAGE_COMMAND, [FromPath, ToPath]),
-    lager:debug("attempting to convert ~s: ~s", [SubType, Cmd]),
-    do_convert_command(Cmd, FromPath, ToPath).
+    run_command(Cmd, FromPath, ToPath).
 
 -spec tiff_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
 tiff_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
     ToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
     ConvertCmd = ?CONVERT_TIFF_TO_PDF_COMMAND,
     Cmd = io_lib:format(ConvertCmd, [ToPath, FromPath]),
-    do_convert_command(Cmd, FromPath, ToPath).
+    run_command(Cmd, FromPath, ToPath).
 
 -spec pdf_to_tiff(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
 pdf_to_tiff(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
     ToPath = filename:join(TmpDir, [JobId, <<".tiff">>]),
     Cmd = io_lib:format(?CONVERT_PDF_COMMAND, [ToPath, FromPath]),
-    do_convert_command(Cmd, FromPath, ToPath).
-
--spec serialize_openoffice_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
-serialize_openoffice_to_pdf(FromPath, Options) ->
-    kz_openoffice_server:convert(FromPath, Options).
+    run_command(Cmd, FromPath, ToPath).
 
 -spec openoffice_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
-openoffice_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
-    ToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
-    Cmd = io_lib:format(?CONVERT_OO_COMMAND, [?OPENOFFICE_SERVER, FromPath, ToPath]),
-    lager:debug("attemting to convert openoffice document: ~s", [Cmd]),
-    do_convert_command(Cmd, FromPath, ToPath).
-
--spec do_convert_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) -> {atom, any()}.
-do_convert_command(Command, FromPath, ToPath) ->
-    lager:info("converting file ~s to ~s with command: ~s", [FromPath, ToPath, Command]),
-    try os:cmd(Command) of
-        "success" -> {'ok', ToPath};
-        Else ->
-            lager:info("could not convert file ~s error: ~p", [FromPath, Else]),
-            kz_util:delete_file(ToPath),
-            {'error', <<"failed to convert">>}
-    catch
-        Else ->
-            lager:info("could not convert file ~s error: ~p", [FromPath, Else]),
-            kz_util:delete_file(ToPath),
-            {'error', <<"error on convert">>}
+openoffice_to_pdf(FromPath, Options) ->
+    case ?SHOULD_SERIALIZE_OO of
+        'true' ->
+            kz_openoffice_server:add(FromPath, Options);
+        'false' ->
+            do_openoffice_to_pdf(FromPath, Options)
     end.
+
+-spec do_openoffice_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
+do_openoffice_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
+    ToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
+    Cmd = io_lib:format(?CONVERT_OO_COMMAND, [?OPENOFFICE_SERVER, ToPath, FromPath]),
+    run_command(Cmd, FromPath, ToPath).
 
 -spec validate_output(kz_term:ne_binary(), kz_term:ne_binary(), map()) ->
                              {'ok', kz_term:ne_binary()} | {'error', kz_term:ne_binary()}.
-validate_output(?TIFF_MIME, Filename, Options) ->
-    case validate_file(Filename) of
-        {'ok', _} ->
-            lager:info("file ~s exists, validating", [Filename]),
-            validate_tiff(Filename, Options);
-        {'error', Reason} ->
-            lager:info("could not get file info for ~s : ~p", [Filename, Reason]),
-            {'error', <<"could not convert input file">>}
-    end;
-validate_output(?PDF_MIME, Filename, _Options) ->
-    case validate_file(Filename) of
-        {'ok', _} ->
-            lager:info("file ~s exists, validating", [Filename]),
-            validate_pdf(Filename);
-        {'error', Reason} ->
-            lager:info("could not get file info for ~s : ~p", [Filename, Reason]),
-            {'error', <<"could not convert input file">>}
-    end;
-validate_output(_Mime, FilePath, _Options) ->
-    validate_file(FilePath).
-
--spec validate_pdf(kz_term:ne_binary()) -> {'ok', kz_term:ne_binary()} | {'error', kz_term:ne_binary()}.
-validate_pdf(Filename) ->
-    Cmd = io_lib:format(?VALIDATE_PDF_COMMAND, [Filename]),
-    try os:cmd(Cmd) of
-        "success" -> {'ok', <<"valid pdf file">>};
-        Else ->
-            lager:info("pdf ~s is not valid, error: ~p", [Filename, Else]),
-            kz_util:delete_file(Filename),
-            {'error', <<"invalid pdf file">>}
-    catch
-        Else ->
-            lager:info("pdf ~s could not be validated, error: ~p", [Filename, Else]),
-            kz_util:delete_file(Filename),
-            {'error', <<"failed to validate">>}
-    end.
-
--spec validate_tiff(kz_term:ne_binary(), map()) -> {'ok', kz_term:ne_binary()} | {'error', kz_term:ne_binary()}.
-validate_tiff(Filename, #{<<"tmp_dir">> := TmpDir}) ->
+validate_output(?TIFF_MIME, Filename, #{<<"tmp_dir">> := TmpDir}) ->
     OutputFile = filename:join(TmpDir, <<(kz_binary:rand_hex(16))/binary, ".pdf">>),
     Cmd = io_lib:format(?VALIDATE_TIFF_COMMAND, [OutputFile, Filename]),
-    try os:cmd(Cmd) of
-        "success" ->
-            case validate_file(OutputFile) of
-                {'ok', _} ->
-                    lager:info("tiff check succeeded converting to pdf"),
-                    catch(file:delete(OutputFile)),
-                    {'ok', Filename};
-                {'error', _} ->
-                    lager:info("tiff check failed to convert to pdf"),
-                    {'error', <<"tiff check failed to convert to pdf">>}
-            end;
-        Else ->
-            lager:info("pdf not valid, converter error: ~p", [Else]),
+    case run_validate_command(Cmd) of
+        {'ok', _}=OK ->
+            kz_util:delete_file(OutputFile),
+            OK;
+        Error ->
+            kz_util:delete_file(OutputFile),
             kz_util:delete_file(Filename),
-            {'error', <<"invalid tiff file">>}
-    catch
-        Else ->
-            case os:find_executable("tiff2pdf") of
-                'false' ->
-                    lager:info("~s not found when trying to validate tiff file, assuming ok.", [Filename]),
-                    {'ok', Filename};
-                _ ->
-                    lager:info("could not validate file ~s error: ~p", [Filename, Else]),
-                    kz_util:delete_file(OutputFile),
-                    {'error', <<"failed to validate">>}
-            end
+            Error
+    end;
+validate_output(?PDF_MIME, Filename, _Options) ->
+    Cmd = io_lib:format(?VALIDATE_PDF_COMMAND, [Filename]),
+    case run_validate_command(Cmd) of
+        {'ok', _}=OK ->
+            OK;
+        Error ->
+            kz_util:delete_file(Filename),
+            Error
+    end;
+validate_output(_Mime, _FilePath, _Options) ->
+    {'ok', <<"unsupported mime type">>}.
+
+-spec run_validate_command(kz_term:ne_binary()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
+run_validate_command(Command) ->
+    lager:debug("validating file with command: ~s", [Command]),
+    Options = ['exit_status'
+              ,'use_stdio'
+              ,'stderr_to_stdout'
+              ],
+    Port = erlang:open_port({'spawn', Command}, Options),
+    case do_run_command(Port, []) of
+        {'ok', <<"success">>} ->
+            {'ok', <<"valid">>};
+        {'error', Msg} ->
+            lager:debug("failed to validate file with error: ~p", [Msg]),
+            {'error', Msg}
     end.
 
--spec validate_file(kz_term:ne_binary()) -> {'ok', kz_term:ne_binary()} | {'error', kz_term:ne_binary()}.
-validate_file(Filename) ->
-    case filelib:file_size(Filename) of
-        0 ->
-            {'error', <<"file is empty">>};
-        _Else ->
-            {'ok', _Else}
+run_command(Command, FromPath, ToPath) ->
+    lager:debug("converting from: ~s to: ~s with command: ~s", [FromPath, ToPath, Command]),
+    Options = ['exit_status'
+              ,'use_stdio'
+              ,'stderr_to_stdout'
+              ],
+    Port = erlang:open_port({'spawn', Command}, Options),
+    case do_run_command(Port, []) of
+        {'ok', <<"success">>} ->
+            {'ok', ToPath};
+        {'error', Msg} ->
+            lager:debug("failed to convert file with error: ~p", [Msg]),
+            kz_util:delete_file(ToPath),
+            {'error', Msg}
+    end.
+
+do_run_command(Port, Acc) ->
+    Timeout = kapps_config:get_integer(?CONFIG_CAT, <<"convert_command_timeout">>, 120 * ?MILLISECONDS_IN_SECOND),
+    receive
+        {Port, {'data', Msg}} ->
+            do_run_command(Port, Acc ++ Msg);
+        {Port, {'exit_status', 0}} ->
+            {'ok', <<"success">>};
+        {Port, {'exit_status', Status}} ->
+            lager:debug("convert command exited with non-zero status: ~p output: ~p", [Status, Acc]),
+            {'error', <<"convert command failed">>}
+    after
+        Timeout ->
+            {'error', <<"convert command timeout">>}
     end.
 
