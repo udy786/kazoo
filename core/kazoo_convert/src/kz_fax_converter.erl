@@ -160,9 +160,18 @@ openoffice_to_pdf(FromPath, Options) ->
 
 -spec do_openoffice_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
 do_openoffice_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
-    ToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
-    Cmd = io_lib:format(?CONVERT_OO_COMMAND, [?OPENOFFICE_SERVER, ToPath, FromPath]),
-    run_command(Cmd, FromPath, ToPath).
+    FinalToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
+    %Cmd = io_lib:format(?CONVERT_OO_COMMAND, [?OPENOFFICE_SERVER, ToPath, FromPath]),
+    ToPath = filename:join(TmpDir, [filename:rootname(filename:basename(FromPath)), <<".pdf">>]),
+    Cmd = io_lib:format(?CONVERT_OO_COMMAND, [FromPath, TmpDir]),
+    case run_command(Cmd, FromPath, ToPath) of
+        {'ok', _} ->
+            case file:rename(ToPath, FinalToPath) of
+                'ok' -> {'ok', FinalToPath};
+                Else -> {'error', Else}
+            end;
+        Else -> Else
+    end.
 
 -spec validate_output(kz_term:ne_binary(), kz_term:ne_binary(), map()) ->
                              {'ok', kz_term:ne_binary()} | {'error', kz_term:ne_binary()}.
@@ -206,6 +215,7 @@ run_validate_command(Command) ->
             {'error', Msg}
     end.
 
+-spec run_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
 run_command(Command, FromPath, ToPath) ->
     lager:debug("converting from: ~s to: ~s with command: ~s", [FromPath, ToPath, Command]),
     Options = ['exit_status'
@@ -222,11 +232,12 @@ run_command(Command, FromPath, ToPath) ->
             {'error', Msg}
     end.
 
+-spec do_run_command({atom(), kz_term:ne_binary()}, list()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
 do_run_command(Port, Acc) ->
     Timeout = kapps_config:get_integer(?CONFIG_CAT, <<"convert_command_timeout">>, 120 * ?MILLISECONDS_IN_SECOND),
     receive
-        {Port, {'data', Msg}} ->
-            do_run_command(Port, Acc ++ Msg);
+        {Port, {'data', Data}} ->
+            do_run_command(Port, Acc ++ Data);
         {Port, {'exit_status', 0}} ->
             {'ok', <<"success">>};
         {Port, {'exit_status', Status}} ->

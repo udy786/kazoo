@@ -32,7 +32,16 @@
                              "-compress group4 "
                              "-size 1728x1078 ~s"
                            >>).
--define(CONVERT_OO_DOC_CMD, <<"unoconv -c ~s -f pdf -o ~s ~s">>).
+%%-define(CONVERT_OO_DOC_CMD, <<"unoconv -c ~s -f pdf -o ~s ~s">>).
+-define(CONVERT_OO_DOC_CMD, <<
+                             "libreoffice "
+                             "--headless "
+                             "--convert-to pdf ~s "
+                             "--outdir ~s "
+                             " 2>&1 "
+                             "|egrep 'parser error|Error' && exit 1 || exit 0"
+                            >>).
+
 -define(VALIDATE_PDF_CMD,<<"gs -dNOPAUSE -dBATCH -sDEVICE=nullpage ~s">>).
 
 -define(CONVERT_IMAGE_COMMAND
