@@ -16,6 +16,8 @@ addons:
   apt:
     packages:
       - xsltproc
+      - libreoffice-common
+      - libtiff-tools
 
 cache:
   apt: true
