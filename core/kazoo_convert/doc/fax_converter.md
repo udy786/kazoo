@@ -47,7 +47,7 @@ The equivalent `fax_converter` command would be
 
 Which also means, if the converter you are using for a specific purpose is a jerk and always returns exit_status `0` (looking at you libreoffice!), you need to handle this.
 
-Something like this could be appended to the end of the your custom command to handle this case.
+Something like this could be appended to the end of the your custom command to handle this case. This searches for matches in the output and emits exit_staus 1 if those matches are found, othewise emits exit_status 0.
 
 ```
 |egrep 'parser error|Error' && exit 1 || exit 0"
@@ -55,7 +55,7 @@ Something like this could be appended to the end of the your custom command to h
 
 Most converters are nice about exit status, but you should definitely test your command in failure cases to ensure you don't end up sending bad faxes or notification emails.
 
-The default parser commands are
+The default parser commands are:
 
 ### Tiff Resample Command
 
@@ -74,8 +74,11 @@ convert ~s \
 ## Tiff to PDF
 The configuration parameter for this command is `convert_tiff_command`. This command is invoked when a conversion from `image/tiff` to `application/pdf` is requested.
 
-this command is passed a to and from filename
+this command is passed to and from filename
 
 ```bash
     tiff2pdf -o ~s ~s
 ```
+
+## Pdf to Tiff
+
