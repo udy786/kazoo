@@ -76,6 +76,10 @@ convert ~s \
 ## Tiff to PDF
 The configuration parameter for this command is `convert_tiff_command`. This command is invoked when a conversion from `image/tiff` to `application/pdf` is requested.
 
+This command is passed to and from filename.
+
+The default command is:
+
 ```bash
 tiff2pdf -o ~s ~s
 ```
@@ -110,6 +114,19 @@ Supported mimetype include:
  - `application/msword`
  - `application/vnd.ms-excel`
  - `application/vnd.ms-powerpoint`
+
+The command is passed a from filename and a directory
+
+The default command is:
+
+```bash
+libreoffice \
+    --headless \
+    --convert-to pdf ~s \
+    --outdir ~s \
+    2>&1 \
+    |egrep 'parser error|Error' && exit 1 || exit 0
+```
 
 The command is passed a from filename and a directory
 

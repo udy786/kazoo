@@ -16,10 +16,9 @@
              orelse CT =:= <<"application/vnd.ms-excel">>
              orelse CT =:= <<"application/vnd.ms-powerpoint">>
         )).
--define(TIFF_TO_PDF_CMD, <<"FROM=~s TO=~s WORKDIR=~s;tiff2pdf -o $FROM $TO">>).
+-define(TIFF_TO_PDF_CMD, <<"tiff2pdf -o $TO $FROM">>).
 -define(CONVERT_PDF_CMD
-       ,<<"FROM=~s TO=~s WORKDIR=~s;"
-          "/usr/bin/gs -q "
+       ,<<"/usr/bin/gs -q "
           "-r204x98 "
           "-g1728x1078 "
           "-dNOPAUSE "
@@ -29,8 +28,7 @@
           "-sOutputFile=$TO -- $FROM"
         >>
        ).
--define(CONVERT_IMAGE_CMD, <<"FROM=~s TO=~s WORKDIR=~s;"
-                             "convert $FROM "
+-define(CONVERT_IMAGE_CMD, <<"convert $FROM "
                              "-resample 204x98 "
                              "-units PixelsPerInch "
                              "-compress group4 "
@@ -38,8 +36,7 @@
                            >>
        ).
 
--define(CONVERT_OPENOFFICE_CMD, <<"FROM=~s TO=~s WORKDIR=~s;"
-                                  "libreoffice "
+-define(CONVERT_OPENOFFICE_CMD, <<"libreoffice "
                                   "--headless "
                                   "--convert-to pdf $FROM "
                                   "--outdir $WORKDIR "
@@ -48,7 +45,7 @@
                                 >>
        ).
 
--define(VALIDATE_PDF_CMD, <<"FROM=~s TO=~s WORKDIR=~s;gs -dNOPAUSE -dBATCH -sDEVICE=nullpage $FROM">>).
+-define(VALIDATE_PDF_CMD, <<"gs -dNOPAUSE -dBATCH -sDEVICE=nullpage $FROM">>).
 
 -define(CONVERT_IMAGE_COMMAND
        ,kapps_config:get_binary(?CONFIG_CAT, <<"convert_image_command">>, ?CONVERT_IMAGE_CMD)).
