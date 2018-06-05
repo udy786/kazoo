@@ -16,55 +16,61 @@
              orelse CT =:= <<"application/vnd.ms-excel">>
              orelse CT =:= <<"application/vnd.ms-powerpoint">>
         )).
--define(TIFF_TO_PDF_CMD, <<"tiff2pdf -o ~s ~s">>).
--define(DEFAULT_CONVERT_PDF_CMD
-       ,<<"/usr/bin/gs -q "
+-define(TIFF_TO_PDF_CMD, <<"FROM=~s TO=~s WORKDIR=~s;tiff2pdf -o $FROM $TO">>).
+-define(CONVERT_PDF_CMD
+       ,<<"FROM=~s TO=~s WORKDIR=~s;"
+          "/usr/bin/gs -q "
           "-r204x98 "
           "-g1728x1078 "
           "-dNOPAUSE "
           "-dBATCH "
           "-dSAFER "
-          "-sDEVICE=tiffg3 "
-          "-sOutputFile=~s -- ~s"
-        >>).
--define(CONVERT_IMAGE_CMD, <<"convert ~s -resample 204x98 "
+          "-sDEVICE=tiffg4 "
+          "-sOutputFile=$TO -- $FROM"
+        >>
+       ).
+-define(CONVERT_IMAGE_CMD, <<"FROM=~s TO=~s WORKDIR=~s;"
+                             "convert $FROM "
+                             "-resample 204x98 "
                              "-units PixelsPerInch "
                              "-compress group4 "
-                             "-size 1728x1078 ~s"
-                           >>).
-%%-define(CONVERT_OO_DOC_CMD, <<"unoconv -c ~s -f pdf -o ~s ~s">>).
--define(CONVERT_OO_DOC_CMD, <<
-                             "libreoffice "
-                             "--headless "
-                             "--convert-to pdf ~s "
-                             "--outdir ~s "
-                             " 2>&1 "
-                             "|egrep 'parser error|Error' && exit 1 || exit 0"
-                            >>).
+                             "-size 1728x1078 $TO"
+                           >>
+       ).
 
--define(VALIDATE_PDF_CMD,<<"gs -dNOPAUSE -dBATCH -sDEVICE=nullpage ~s">>).
+-define(CONVERT_OPENOFFICE_CMD, <<"FROM=~s TO=~s WORKDIR=~s;"
+                                  "libreoffice "
+                                  "--headless "
+                                  "--convert-to pdf $FROM "
+                                  "--outdir $WORKDIR "
+                                  " 2>&1 "
+                                  "|egrep 'parser error|Error' && exit 1 || exit 0"
+                                >>
+       ).
+
+-define(VALIDATE_PDF_CMD, <<"FROM=~s TO=~s WORKDIR=~s;gs -dNOPAUSE -dBATCH -sDEVICE=nullpage $FROM">>).
 
 -define(CONVERT_IMAGE_COMMAND
        ,kapps_config:get_binary(?CONFIG_CAT, <<"convert_image_command">>, ?CONVERT_IMAGE_CMD)).
--define(CONVERT_OO_COMMAND
-       ,kapps_config:get_binary(?CONFIG_CAT, <<"convert_openoffice_document_command">>, ?CONVERT_OO_DOC_CMD)).
 -define(CONVERT_PDF_COMMAND
-       ,kapps_config:get_binary(?CONFIG_CAT, <<"convert_pdf_command">>, ?DEFAULT_CONVERT_PDF_CMD)).
--define(CONVERT_TIFF_TO_PDF_COMMAND
-       ,kapps_config:get_binary(?CONFIG_CAT, <<"convert_tiff_command">>, ?TIFF_TO_PDF_CMD)).
+       ,kapps_config:get_binary(?CONFIG_CAT, <<"convert_pdf_command">>, ?CONVERT_PDF_CMD)).
 -define(VALIDATE_PDF_COMMAND
        ,kapps_config:get_binary(?CONFIG_CAT, <<"validate_pdf_command">>, ?VALIDATE_PDF_CMD)).
+-define(CONVERT_TIFF_COMMAND
+       ,kapps_config:get_binary(?CONFIG_CAT, <<"convert_tiff_command">>, ?TIFF_TO_PDF_CMD)).
 -define(VALIDATE_TIFF_COMMAND
        ,kapps_config:get_binary(?CONFIG_CAT, <<"validate_tiff_command">>, ?TIFF_TO_PDF_CMD)).
-
--define(OPENOFFICE_SERVER
-       ,kapps_config:get_binary(?CONFIG_CAT, <<"openoffice_server">>, <<"'socket,host=localhost,port=2002;urp;StarOffice.ComponentContext'">>)).
+-define(CONVERT_OPENOFFICE_COMMAND
+       ,kapps_config:get_binary(?CONFIG_CAT, <<"convert_openoffice_command">>, ?CONVERT_OPENOFFICE_CMD)).
 
 -define(TMP_DIR
        ,kapps_config:get_binary(?CONFIG_CAT, <<"file_cache_path">>, <<"/tmp/">>)).
 
--define(SHOULD_SERIALIZE_OO
-       ,kapps_config:get_is_true(?CONFIG_CAT, <<"should_serialize_openoffice">>, true)).
+-define(SERIALIZE_OPENOFFICE
+       ,kapps_config:get_is_true(?CONFIG_CAT, <<"serialize_openoffice">>, true)).
+
+-define(ENABLE_OPENOFFICE
+       ,kapps_config:get_is_true(?CONFIG_CAT, <<"enable_openoffice">>, true)).
 
 -define(KZ_CONVERT_HRL, 'true').
 -endif.

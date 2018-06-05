@@ -111,7 +111,6 @@ return_output(FilePath, #{<<"output_type">> := path}) ->
 return_output(FilePath, _Options) ->
     {'ok', FilePath}.
 
-
 -spec maybe_delete_previous_file(kz_term:ne_binary(), kz_term:ne_binary()) -> 'ok'.
 maybe_delete_previous_file(Filename, Filename) ->
     'ok';
@@ -133,25 +132,21 @@ save_file(Content, #{<<"tmp_dir">> := TmpDir
 -spec image_to_tiff(kz_term:ne_binary(), {atom(), kz_term:ne_binary()}, map()) -> {atom(), kz_term:ne_binary()}.
 image_to_tiff(_SubType, FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
     ToPath = filename:join(TmpDir, [JobId, <<".tiff">>]),
-    Cmd = io_lib:format(?CONVERT_IMAGE_COMMAND, [FromPath, ToPath]),
-    run_command(Cmd, FromPath, ToPath).
+    run_convert_command(?CONVERT_IMAGE_COMMAND, FromPath, ToPath, TmpDir).
 
 -spec tiff_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
 tiff_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
     ToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
-    ConvertCmd = ?CONVERT_TIFF_TO_PDF_COMMAND,
-    Cmd = io_lib:format(ConvertCmd, [ToPath, FromPath]),
-    run_command(Cmd, FromPath, ToPath).
+    run_convert_command(?CONVERT_TIFF_COMMAND, FromPath, ToPath, TmpDir).
 
 -spec pdf_to_tiff(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
 pdf_to_tiff(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
     ToPath = filename:join(TmpDir, [JobId, <<".tiff">>]),
-    Cmd = io_lib:format(?CONVERT_PDF_COMMAND, [ToPath, FromPath]),
-    run_command(Cmd, FromPath, ToPath).
+    run_convert_command(?CONVERT_PDF_COMMAND, FromPath, ToPath, TmpDir).
 
 -spec openoffice_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
 openoffice_to_pdf(FromPath, Options) ->
-    case ?SHOULD_SERIALIZE_OO of
+    case ?SERIALIZE_OPENOFFICE of
         'true' ->
             kz_openoffice_server:add(FromPath, Options);
         'false' ->
@@ -161,76 +156,74 @@ openoffice_to_pdf(FromPath, Options) ->
 -spec do_openoffice_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
 do_openoffice_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
     FinalToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
-    %Cmd = io_lib:format(?CONVERT_OO_COMMAND, [?OPENOFFICE_SERVER, ToPath, FromPath]),
     ToPath = filename:join(TmpDir, [filename:rootname(filename:basename(FromPath)), <<".pdf">>]),
-    Cmd = io_lib:format(?CONVERT_OO_COMMAND, [FromPath, TmpDir]),
-    case run_command(Cmd, FromPath, ToPath) of
-        {'ok', _} ->
-            case file:rename(ToPath, FinalToPath) of
-                'ok' -> {'ok', FinalToPath};
-                Else -> {'error', Else}
-            end;
+    case run_convert_command(?CONVERT_OPENOFFICE_COMMAND, FromPath, FinalToPath, TmpDir) of
+        {'ok', _} -> maybe_rename_tmp_file(ToPath, FinalToPath);
         Else -> Else
+    end.
+
+-spec maybe_rename_tmp_file(kz_term:ne_binary(), kz_term:ne_binary()) ->
+                                   {'ok', kz_term:ne_binary()} | {'error', kz_term:ne_binary()}.
+maybe_rename_tmp_file(TmpPath, NewPath) ->
+    case file:is_file(NewPath) of
+        'true' -> {'ok', NewPath};
+        'false' ->
+            case file:rename(TmpPath, NewPath) of
+                'ok' -> {'ok', NewPath};
+                Else -> {'error', Else}
+            end
     end.
 
 -spec validate_output(kz_term:ne_binary(), kz_term:ne_binary(), map()) ->
                              {'ok', kz_term:ne_binary()} | {'error', kz_term:ne_binary()}.
 validate_output(?TIFF_MIME, Filename, #{<<"tmp_dir">> := TmpDir}) ->
     OutputFile = filename:join(TmpDir, <<(kz_binary:rand_hex(16))/binary, ".pdf">>),
-    Cmd = io_lib:format(?VALIDATE_TIFF_COMMAND, [OutputFile, Filename]),
-    case run_validate_command(Cmd) of
+    case run_validate_command(?VALIDATE_TIFF_COMMAND, Filename, OutputFile) of
         {'ok', _}=OK ->
             kz_util:delete_file(OutputFile),
             OK;
         Error ->
-            kz_util:delete_file(OutputFile),
+            _ = file:delete(OutputFile),
             kz_util:delete_file(Filename),
             Error
     end;
 validate_output(?PDF_MIME, Filename, _Options) ->
-    Cmd = io_lib:format(?VALIDATE_PDF_COMMAND, [Filename]),
-    case run_validate_command(Cmd) of
+    case run_validate_command(?VALIDATE_PDF_COMMAND, Filename, <<"">>) of
         {'ok', _}=OK ->
             OK;
         Error ->
-            kz_util:delete_file(Filename),
+            _ = file:delete(Filename),
             Error
     end;
 validate_output(_Mime, _FilePath, _Options) ->
     {'ok', <<"unsupported mime type">>}.
 
--spec run_validate_command(kz_term:ne_binary()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
-run_validate_command(Command) ->
-    lager:debug("validating file with command: ~s", [Command]),
-    Options = ['exit_status'
-              ,'use_stdio'
-              ,'stderr_to_stdout'
-              ],
-    Port = erlang:open_port({'spawn', Command}, Options),
-    case do_run_command(Port, []) of
-        {'ok', <<"success">>} ->
-            {'ok', <<"valid">>};
-        {'error', Msg} ->
-            lager:debug("failed to validate file with error: ~p", [Msg]),
-            {'error', Msg}
-    end.
+-spec run_validate_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
+run_validate_command(Command, FromPath, ToPath) ->
+    Cmd = io_lib:format(Command, [FromPath, ToPath]),
+    lager:debug("validating file with command: ~s", [Cmd]),
+    run_command(Cmd).
 
--spec run_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
-run_command(Command, FromPath, ToPath) ->
-    lager:debug("converting from: ~s to: ~s with command: ~s", [FromPath, ToPath, Command]),
-    Options = ['exit_status'
-              ,'use_stdio'
-              ,'stderr_to_stdout'
-              ],
-    Port = erlang:open_port({'spawn', Command}, Options),
-    case do_run_command(Port, []) of
+-spec run_convert_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
+run_convert_command(Command, FromPath, ToPath, TmpDir) ->
+    Cmd = io_lib:format(Command, [FromPath, ToPath, TmpDir]),
+    lager:debug("converting file with command: ~s", [Cmd]),
+    case run_command(Command) of
         {'ok', <<"success">>} ->
             {'ok', ToPath};
         {'error', Msg} ->
             lager:debug("failed to convert file with error: ~p", [Msg]),
-            kz_util:delete_file(ToPath),
+            _ = file:delete(ToPath),
             {'error', Msg}
     end.
+
+run_command(Command) ->
+    Options = ['exit_status'
+              ,'use_stdio'
+              ,'stderr_to_stdout'
+              ],
+    Port = erlang:open_port({'spawn', Command}, Options),
+    do_run_command(Port, []).
 
 -spec do_run_command({atom(), kz_term:ne_binary()}, list()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
 do_run_command(Port, Acc) ->
