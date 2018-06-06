@@ -37,7 +37,6 @@
 -spec convert(kz_term:ne_binary(), kz_term:ne_binary(), binary()|{'file', filename:name()}, kz_term:proplist()) ->
                      {ok, any()} | {error, any()}.
 convert(From, To, Content, Opts) ->
-    lager:debug("converting document from ~s to ~s"),
     Options = maps:from_list(
                 [{<<"from_format">>, From}
                 ,{<<"to_format">>, To}
@@ -45,6 +44,7 @@ convert(From, To, Content, Opts) ->
                  | props:delete_keys([<<"job_id">>], Opts)
                 ]),
     Filename = save_file(Content, Options),
+    lager:debug("converting document ~s from ~s to ~s", [Filename, From, To]),
     run_convert(eval_format(From, To), To, Filename, Options).
 
 -spec eval_format(kz_term:ne_binary(), kz_term:ne_binary()) -> kz_term:list().
@@ -130,7 +130,7 @@ save_file(Content, #{<<"tmp_dir">> := TmpDir
                     ,<<"from_format">> := FromFormat
                     }) ->
     Ext = kz_mime:to_extension(FromFormat),
-    FilePath = filename:join(TmpDir, [JobId, <<".initial.">>, Ext]),
+    FilePath = filename:join(TmpDir, [JobId, <<".">>, Ext]),
     kz_util:write_file(FilePath, Content),
     FilePath.
 
@@ -237,14 +237,20 @@ run_command(Command, FromPath, ToPath, TmpDir) ->
                }
               ],
     Port = erlang:open_port({'spawn', Command}, Options),
-    do_run_command(Port, []).
+    case erlang:port_info(Port, os_pid) of
+        {os_pid, OsPid} ->
+            erlang:port_info(Port, os_pid),
+            do_run_command(Port, [], OsPid);
+        _ ->
+            {'error', <<"command failed">>}
+    end.
 
--spec do_run_command({atom(), kz_term:ne_binary()}, list()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
-do_run_command(Port, Acc) ->
+-spec do_run_command({atom(), kz_term:ne_binary()}, list(), list()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
+do_run_command(Port, Acc, OsPid) ->
     Timeout = kapps_config:get_integer(?CONFIG_CAT, <<"convert_command_timeout">>, 120 * ?MILLISECONDS_IN_SECOND),
     receive
         {Port, {'data', Data}} ->
-            do_run_command(Port, Acc ++ Data);
+            do_run_command(Port, Acc ++ Data, OsPid);
         {Port, {'exit_status', 0}} ->
             {'ok', <<"success">>};
         {Port, {'exit_status', Status}} ->
@@ -252,6 +258,7 @@ do_run_command(Port, Acc) ->
             {'error', <<"command failed">>}
     after
         Timeout ->
+            _ = os:cmd(io_lib:format("kill -9 ~p", [OsPid])),
             {'error', <<"command timeout">>}
     end.
 

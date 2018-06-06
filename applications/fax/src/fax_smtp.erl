@@ -257,10 +257,13 @@ handle_message(#state{filename=Filename
                      ,errors=[]
                      }=State) ->
     lager:debug("checking file ~s", [Filename]),
-    case file:read_file(Filename) of
+
+    FromFormat = kz_mime:from_filename(Filename),
+    Options = [{<<"output_type">>, 'binary'}
+              ],
+    case kz_convert:fax(FromFormat, <<"image/tiff">>, {'file', Filename}, Options) of
         {'ok', FileContents} ->
-            CT = kz_mime:from_filename(Filename),
-            case fax_util:save_fax_docs([Doc], FileContents, CT) of
+            case fax_util:save_fax_docs([Doc], FileContents, <<"image/tiff">>) of
                 'ok' ->
                     lager:debug("smtp fax document saved"),
                     kz_util:delete_file(Filename);
