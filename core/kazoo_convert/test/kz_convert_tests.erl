@@ -45,6 +45,21 @@ fax_test_() ->
              ,test_openoffice_to_tiff_binary_invalid()
              ,test_openoffice_to_tiff_tuple_invalid()
              ,test_invalid_conversion()
+             ,test_tiff_to_pdf_empty_content()
+             ,test_tiff_to_tiff_empty_content()
+             ,test_pdf_to_tiff_empty_content()
+             ,test_openoffice_to_pdf_empty_content()
+             ,test_openoffice_to_tiff_empty_content()
+             ,test_tiff_to_pdf_nonexistent_filename()
+             ,test_tiff_to_tiff_nonexistent_filename()
+             ,test_pdf_to_tiff_nonexistent_filename()
+             ,test_openoffice_to_pdf_nonexistent_filename()
+             ,test_openoffice_to_tiff_nonexistent_filename()
+             ,test_tiff_to_pdf_empty_filename()
+             ,test_tiff_to_tiff_empty_filename()
+             ,test_pdf_to_tiff_empty_filename()
+             ,test_openoffice_to_pdf_empty_filename()
+             ,test_openoffice_to_tiff_empty_filename()
              ]
      end
     }.
@@ -425,6 +440,159 @@ test_invalid_conversion() ->
     [?_assertMatch({'error', _}, kz_convert:fax(<<"application/pdf">>
                                                ,<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
                                                ,{'file', Src}
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_tiff_to_pdf_empty_content() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"image/tiff">>
+                                               ,<<"application/pdf">>
+                                               ,<<"">>
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_tiff_to_tiff_empty_content() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"image/tiff">>
+                                               ,<<"image/tiff">>
+                                               ,<<"">>
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_pdf_to_tiff_empty_content() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"application/pdf">>
+                                              ,<<"image/tiff">>
+                                              ,<<"">>
+                                              ,[{<<"job_id">>, JobId}]
+                                              )
+                  )
+        ].
+
+test_openoffice_to_pdf_empty_content() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
+                                               ,<<"application/pdf">>
+                                               ,<<"">>
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_openoffice_to_tiff_empty_content() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
+                                               ,<<"image/tiff">>
+                                               ,<<"">>
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )].
+
+test_tiff_to_pdf_nonexistent_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"image/tiff">>
+                                               ,<<"application/pdf">>
+                                               ,{'file', <<"/tmp/not_a_file.tiff">>}
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_tiff_to_tiff_nonexistent_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}
+                  ,kz_convert:fax(<<"image/tiff">>
+                                 ,<<"image/tiff">>
+                                 ,{'file', <<"/tmp/not_a_file.tiff">>}
+                                 ,[{<<"job_id">>, JobId}]
+                                 )
+                  )
+    ].
+
+test_pdf_to_tiff_nonexistent_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(
+                                                <<"application/pdf">>
+                                               ,<<"image/tiff">>
+                                               ,{'file', <<"not_a_file.pdf">>}
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_openoffice_to_pdf_nonexistent_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
+                                               ,<<"application/pdf">>
+                                               ,{'file', <<"/tmp/no_a_file.docx">>}
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_openoffice_to_tiff_nonexistent_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
+                                               ,<<"image/tiff">>
+                                               ,{'file', <<"/tmp/not_a_file.docx">>}
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_tiff_to_pdf_empty_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"image/tiff">>
+                                               ,<<"application/pdf">>
+                                               ,{'file', <<"">>}
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_tiff_to_tiff_empty_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}
+                  ,kz_convert:fax(<<"image/tiff">>
+                                 ,<<"image/tiff">>
+                                 ,{'file', <<"">>}
+                                 ,[{<<"job_id">>, JobId}]
+                                 )
+                  )
+    ].
+
+test_pdf_to_tiff_empty_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(
+                                                <<"application/pdf">>
+                                               ,<<"image/tiff">>
+                                               ,{'file', <<"">>}
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_openoffice_to_pdf_empty_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
+                                               ,<<"application/pdf">>
+                                               ,{'file', <<"">>}
+                                               ,[{<<"job_id">>, JobId}]
+                                               )
+                  )
+    ].
+
+test_openoffice_to_tiff_empty_filename() ->
+    JobId = kz_binary:rand_hex(16),
+    [?_assertMatch({'error', _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
+                                               ,<<"image/tiff">>
+                                               ,{'file', <<"">>}
                                                ,[{<<"job_id">>, JobId}]
                                                )
                   )
