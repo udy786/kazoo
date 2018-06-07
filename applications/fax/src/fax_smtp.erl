@@ -255,11 +255,12 @@ handle_message(#state{filename=Filename
                      ,content_type=_CT
                      ,doc=Doc
                      ,errors=[]
+                     ,session_id=SessionId
                      }=State) ->
     lager:debug("checking file ~s", [Filename]),
-
     FromFormat = kz_mime:from_filename(Filename),
     Options = [{<<"output_type">>, 'binary'}
+              ,{<<"job_id">>, SessionId}
               ],
     case kz_convert:fax(FromFormat, <<"image/tiff">>, {'file', Filename}, Options) of
         {'ok', FileContents} ->

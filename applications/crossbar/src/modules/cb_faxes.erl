@@ -673,19 +673,29 @@ save_attachment(Context, Filename, FileJObj) ->
     JObj = cb_context:doc(Context),
     DocId = kz_doc:id(JObj),
     Contents = kz_json:get_value(<<"contents">>, FileJObj),
-    CT = kz_json:get_value([<<"headers">>, <<"content_type">>], FileJObj),
-    Opts = [{'content_type', CT}
-           ,{'rev', kz_doc:revision(JObj)}
-            | ?TYPE_CHECK_OPTION(<<"fax">>)
-           ],
-    set_pending(crossbar_doc:save_attachment(DocId
-                                            ,cb_modules_util:attachment_name(Filename, CT)
-                                            ,Contents
-                                            ,Context
-                                            ,Opts
-                                            )
-               ,DocId
-               ).
+    FromFormat = kz_json:get_value([<<"headers">>, <<"content_type">>], FileJObj),
+    Options = [{<<"output_type">>, 'binary'}
+              ,{<<"job_id">>, DocId}
+              ],
+    case kz_convert:fax(FromFormat, <<"image/tiff">>, Contents, Options) of
+        {'ok', Output} ->
+            Opts = [{'content_type', <<"image/tiff">>}
+                   ,{'rev', kz_doc:revision(JObj)}
+                    | ?TYPE_CHECK_OPTION(<<"fax">>)
+                   ],
+            set_pending(crossbar_doc:save_attachment(DocId
+                                                    ,cb_modules_util:attachment_name(Filename, <<"image/tiff">>)
+                                                    ,Output
+                                                    ,Context
+                                                    ,Opts
+                                                    )
+                       ,DocId
+                       );
+        {'error', Error} ->
+            lager:error("error converting fax attachment ~s : ~p", [Filename, Error]),
+            cb_context:add_system_error(<<"error converting fax file to tiff">>, Context)
+    end.
+
 
 -spec set_pending(cb_context:context(), binary()) -> cb_context:context().
 set_pending(Context, DocId) ->
