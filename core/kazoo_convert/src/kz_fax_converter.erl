@@ -174,7 +174,7 @@ do_openoffice_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}
 -spec maybe_rename_tmp_file(kz_term:ne_binary(), kz_term:ne_binary()) ->
                                    {'ok', kz_term:ne_binary()} | {'error', kz_term:ne_binary()}.
 maybe_rename_tmp_file(TmpPath, NewPath) ->
-    case file:is_file(NewPath) of
+    case filelib:is_file(NewPath) of
         'true' -> {'ok', NewPath};
         'false' ->
             case file:rename(TmpPath, NewPath) of
@@ -216,7 +216,7 @@ run_validate_command(Command, FromPath, ToPath, TmpDir) ->
 -spec run_convert_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
 run_convert_command(Command, FromPath, ToPath, TmpDir) ->
     %Cmd = io_lib:format(Command, [FromPath, ToPath, TmpDir]),
-    lager:info("converting file with command: ~s", [Command]),
+    lager:debug("converting file with command: ~s", [Command]),
     case run_command(Command, FromPath, ToPath, TmpDir) of
         {'ok', <<"success">>} ->
             {'ok', ToPath};
@@ -254,7 +254,7 @@ do_run_command(Port, Acc, OsPid) ->
         {Port, {'exit_status', 0}} ->
             {'ok', <<"success">>};
         {Port, {'exit_status', Status}} ->
-            lager:info("command exited with non-zero status: ~p output: ~p", [Status, Acc]),
+            lager:debug("command exited with non-zero status: ~p output: ~p", [Status, Acc]),
             {'error', <<"command failed">>}
     after
         Timeout ->
