@@ -15,11 +15,11 @@ When using the default converter module several system dependencies were introdu
 ## Enviornment variables provided to commadns
 Three enviornment variables are provided to every command to ensure ordering of arguments can be provided in any order.
 
-| --- | --- |
 | Variable | Description |
-| $From | The source filename for the conversion |
-| $TO | The destination filename for the conversion |
-| $WORKDIR | The working directory for the conversion |
+| --- | --- | 
+| `$From` | The source filename for the conversion |
+| `$TO` | The destination filename for the conversion | 
+| `$WORKDIR` | The working directory for the conversion | 
 
 The `$TO` and `$FROM` environment variables are generally used in most commands, but some commands which are intended to operate in batch modes require a work dir instead of a destination file name.
 
@@ -57,7 +57,7 @@ The equivalent `fax_converter` command would be:
 
 Which also means, if the converter you are using for a specific purpose is a jerk and always returns exit_status `0`, you need to handle this in your convert command. Something like this could be appended to the end of the your custom command to handle this case. This example searches for matches to the patterns `parser error`  and `error`in the output and emits exit_staus 1 (error) if those matches are found, othewise emits exit_status 0 (ok).
 
-```
+```bash
 |egrep 'parser error|Error' && exit 1 || exit 0"
 ```
 
