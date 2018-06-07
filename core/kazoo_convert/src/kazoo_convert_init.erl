@@ -16,4 +16,7 @@
 %%------------------------------------------------------------------------------
 -spec start_link() -> kz_types:startlink_ret().
 start_link() ->
-    kazoo_convert_sup:start_link().
+    case ?ENABLE_OPENOFFICE of
+        'true' -> kazoo_convert_sup:start_link();
+        'false' -> 'ignore'
+    end.

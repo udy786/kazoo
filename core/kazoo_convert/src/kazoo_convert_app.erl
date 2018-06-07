@@ -17,7 +17,7 @@
 %%------------------------------------------------------------------------------
 -spec start(application:start_type(), any()) -> kz_types:startapp_ret().
 start(_Type, _Args) ->
-    kazoo_openoffice_sup:start_link().
+    kz_openoffice_server_sup:start_link().
 
 %%------------------------------------------------------------------------------
 %% @doc Implement the application stop behaviour.
@@ -25,5 +25,4 @@ start(_Type, _Args) ->
 %%------------------------------------------------------------------------------
 -spec stop(any()) -> any().
 stop(_State) ->
-    _ = kazoo_openoffice_sup:stop(),
-    'ok'.
+    kz_openoffice_server_sup:stop().

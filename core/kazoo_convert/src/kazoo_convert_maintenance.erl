@@ -3,7 +3,7 @@
 %%% @doc
 %%% @end
 %%%-----------------------------------------------------------------------------
--module(kz_convert_maintenance).
+-module(kazoo_convert_maintenance).
 
 -export([convert_fax_file/2, convert_fax_file/3]).
 -export([versions_in_use/0]).
