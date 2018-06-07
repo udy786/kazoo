@@ -42,8 +42,8 @@ Key | Description | Type | Default | Required | Support Level
 `file_cache_path` | default working path for conversions files | `string()` | `/tmp/` | `false` |
 `serialize_openoffice` | kazoo_convert serialize_openoffice | `boolean()` | `true` | `false` |
 `should_serialize_openoffice` | serialize the operation of converting openoffice compatible documents | `boolean()` | `true` | `false` |
-`validate_pdf_command` | command used to verify a pdf file | `string()` | `gs -dNOPAUSE -dBATCH -sDEVICE=nullpage ~s` | `false` |
-`validate_tiff_command` | command used to verify a tiff file | `string()` | `tiff2pdf -o ~s ~s` | `false` |
+`validate_pdf_command` | command used to verify a pdf file | `string()` | [see command document](fax_converter.md) | `false` |
+`validate_tiff_command` | command used to verify a tiff file | `string()` | [see command document](fax_converter.md) | `false` |
 
 
 ### Sup Commands
