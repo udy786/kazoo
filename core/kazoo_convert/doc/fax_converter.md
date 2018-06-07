@@ -10,15 +10,25 @@ Version: 4.2
 This module provide a consistant core interface for fax file format conversions. The module is enabled as the default fax converter, but this can be easily extended by adding other modules to the converter.
 
 ## Fax Converter Installation Considerations
-When using the default converter module several system dependencies were introduced. For default conversions from PDF to TIFF, The system packages `ghostscript` must be installed, for default conversion from tiff to pdf, `libtiff-tools` must be installed. If conversion to openxml formatted documents (docx, doc, xlsx, xls) is enabled, the dependency `libreoffice` must be installed. If a dependency is not installed, the converter command will simply fail on the system and the fax converter will return an error. If the converters commands are substituted this
+When using the default converter module several system dependencies were introduced. For default conversions from PDF to TIFF, The system packages `ghostscript` must be installed, for default conversion from tiff to pdf, `libtiff-tools` must be installed. If conversion to openxml formatted documents (docx, doc, xlsx, xls) is enabled, the dependency `libreoffice` must be installed. If a dependency is not installed, the converter command will simply fail on the system and the fax converter will return an error. If the converters commands are substituted this.
+
+## Enviornment variables provided to commadns
+Three enviornment variables are provided to every command to ensure ordering of arguments can be provided in any order.
+
+| --- | --- |
+| Variable | Description |
+| $From | The source filename for the conversion |
+| $TO | The destination filename for the conversion |
+| $WORKDIR | The working directory for the conversion |
+
+The `$TO` and `$FROM` environment variables are generally used in most commands, but some commands which are intended to operate in batch modes require a work dir instead of a destination file name.
 
 ## Fax Converter Commands
 
-All of the functionality for conversions was extracted from the `fax` and `teletype` apps, however the conversion commands executed did not survive the journey. Unlike the convert commands in the `fax` app, the `fax_converter` module the exit status and not the output is used to determine the success or failure of a command.
+All of the functionality for conversions was extracted from the `fax` and `teletype` apps, however the conversion commands executed did not survive the journey. Unlike the convert commands in the `fax` app, the `fax_converter` module the `exit status` and not the output is used to determine the success or failure of a command.
 
 This means if you have customized your commands, you should ensure the exit status returned is correct for the result of the custom convert command.
 
-For example, if your convert command in your fax config was previously:
 ```bash
 /usr/bin/gs -q \
      -r204x98 \
@@ -42,7 +52,7 @@ The equivalent `fax_converter` command would be:
      -dBATCH \
      -dSAFER \
      -sDEVICE=tiffg3 \
-     -sOutputFile=~s -- ~s
+     -sOutputFile=$TO -- $FROM
 ```
 
 Which also means, if the converter you are using for a specific purpose is a jerk and always returns exit_status `0`, you need to handle this in your convert command. Something like this could be appended to the end of the your custom command to handle this case. This example searches for matches to the patterns `parser error`  and `error`in the output and emits exit_staus 1 (error) if those matches are found, othewise emits exit_status 0 (ok).
@@ -53,7 +63,7 @@ Which also means, if the converter you are using for a specific purpose is a jer
 
 Most converters are nice about exit status, but you should definitely test your command in failure cases to ensure you don't end up sending bad faxes or notification emails.
 
-The default parser commands are:
+## Default Convert Commands
 
 ### Tiff Resample Command
 
@@ -61,35 +71,39 @@ The configuration parameter for this command is `convert_image_command`. This co
 
 This is most commonly used to resample a tiff to ensure it is in the standard format for faxing.
 
-This command is passed the from and to filenames.
-
 The default command is:
 
 ```bash
-convert ~s \
+convert $FROM \
     -resample 204x98 \
     -units PixelsPerInch \
     -compress group4 \
-    -size 1728x1078 ~s
+    -size 1728x1078 $TO
 ```
 
-## Tiff to PDF
-The configuration parameter for this command is `convert_tiff_command`. This command is invoked when a conversion from `image/tiff` to `application/pdf` is requested.
+#### Requirements
 
-This command is passed to and from filename.
+This command requires `convert` be installed, this is installed via the package `ImageMagick` in centos and debian.
+
+## Tiff to PDF
+
+The configuration parameter for this command is `convert_tiff_command`. This command is invoked when a conversion from `image/tiff` to `application/pdf` is requested.
 
 The default command is:
 
 ```bash
-tiff2pdf -o ~s ~s
+tiff2pdf -o $FROM $TO
 ```
 
+#### Requirements
+
+This command requires `tiff2pdf` be installed, this is installed via the package `libtifftools` in centos and `libtiff-tools` in debian.
+
 ## Pdf to Tiff
+
 The configuration parameter for this command is `convert_pdf_command`. This command is invoked when conversion from `application/pdf` to `image/tiff` is requested.
 
-This command is passed a to and from filename.
-
-The default command is:
+### Default command
 
 ```bash
 /usr/bin/gs \
@@ -100,12 +114,18 @@ The default command is:
     -dBATCH \
     -dSAFER \
     -sDEVICE=tiffg4 \
-    -sOutputFile=~s \
-    -- ~s
+    -sOutputFile=$TO \
+    -- $FROM
 ```
 
+#### Requirements
+
+This command requires `ghostscript` be installed, this is installed via the package `ghostscript` in centos and debian.
+
+
 ## Openoffice compatible to PDF
-The configuration for this command is `convert_openoffice_command`. This command is invoked when conversion from any openoffice compatible format is requested.
+
+The configuration for this command is `convert_openoffice_command`. This command is invoked when conversion from any openoffice compatible format is requested. For this feature to be used, `enable_openoffice` must be set in the `kazoo_convert` configuration. If openoffice compatible format conversions are enabled, by default openoffice conversions are serialized, this can be changed by setting `serialize_openoffice` to false. This is strongly reccomended to be enabled if using the unoconv converter for openoffice conversions, as it explicitly requires one conversion at a time. The default use of `unoconv` has been depricated as libreoffice can be invoked directly using the `--convert-to pdf` argument. `libreoffice` unlike `unoconv` provides useful output if a command fails, neither provides a correct exit status so it must be determined from the command output.
 
 Supported mimetype include:
 
@@ -117,26 +137,46 @@ Supported mimetype include:
 
 The command is passed a from filename and a directory
 
-The default command is:
-
 ```bash
 libreoffice \
     --headless \
-    --convert-to pdf ~s \
-    --outdir ~s \
+    --convert-to pdf $FROM \
+    --outdir $WORKDIR \
     2>&1 \
     |egrep 'parser error|Error' && exit 1 || exit 0
 ```
 
-The command is passed a from filename and a directory
+### Requirements
+
+This command requires `libreoffice` via package `libreoffice-core` in centos and `libreoffice-common` in debian.
+
+## Default Validate Commands
+
+### Validate Tiff Command
+
+The configuration parameter for this command is `verify_tiff_command`. This command is invoked when a conversion from `image/tiff` to `application/pdf` is requested.
 
 The default command is:
 
 ```bash
-libreoffice \
-    --headless \
-    --convert-to pdf ~s \
-    --outdir ~s \
-    2>&1 \
-    |egrep 'parser error|Error' && exit 1 || exit 0
+tiff2pdf -o $FROM $TO
 ```
+
+#### Requirements
+
+This command requires `tiff2pdf` be installed, this is installed via the package `libtifftools` in centos and `libtiff-tools` in debian.
+
+### Validate PDF Command
+
+The configuration parameter for this command is `verify_tiff_command`. This command is invoked when a conversion from `image/tiff` to `application/pdf` is requested.
+
+The default command is:
+
+```bash
+gs -dNOPAUSE -dBATCH -sDEVICE=nullpage $FROM
+```
+
+#### Requirements
+
+This command requires `ghostscript` be installed, this is installed via the package `ghostscript` in centos and debian.
+
