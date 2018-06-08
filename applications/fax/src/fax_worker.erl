@@ -808,7 +808,7 @@ elapsed_time(JObj) ->
     Now - Created.
 
 -spec fetch_document(kz_term:ne_binary(), kz_json:object()) ->
-                        {'ok', filename:file()}|{'error', any()}.
+                            {'ok', filename:file()}|{'error', any()}.
 fetch_document(JobId, JObj) ->
     case kz_doc:attachment_names(JObj) of
         [] -> fetch_document_from_url(JobId, JObj);
@@ -863,7 +863,7 @@ maybe_convert_content(JobId, FromFormat, Content, TmpDir) ->
     convert_content(JobId, FromFormat, Content, TmpDir).
 
 -spec convert_content(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
-                                   {'ok', filename:file()}|{'error', any()}.
+                             {'ok', filename:file()}|{'error', any()}.
 convert_content(JobId, FromFormat, Content, TmpDir) ->
     Options = [{<<"output_type">>, 'path'}
               ,{<<"job_id">>, JobId}

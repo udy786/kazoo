@@ -31,7 +31,7 @@
 %% <li><strong>job_id:</strong> the unique ID of the job (like a fax job_id).
 %% Used for naming the output file with the extension derived from the `To' format</li>
 %% <li><strong>output_type:</strong> return the converted doc as a raw `binary' containing
-%% the contensts of the file or `path' to recieve a path to the converted file in the response.
+%% the contents of the file or `path' to receive a path to the converted file in the response.
 %% The default is `path'.</li>
 %% <li><strong>tmp_dir:</strong> the working directory where the conversion will take place.</li>
 %% </ul>

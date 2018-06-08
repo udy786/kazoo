@@ -44,7 +44,7 @@ fax(FromFormat, ToFormat, Content) ->
 %% @end
 %%------------------------------------------------------------------------------
 -spec fax(kz_term:api_ne_binary(), kz_term:api_ne_binary(), binary()|{'file', filename:name()}, kz_term:proplist()) ->
-                     {'ok', any()} | {'error', any()}.
+                 {'ok', any()} | {'error', any()}.
 fax('undefined', _ToFormat, <<>>, _Options) ->
     {'error', <<"undefined from format">>};
 fax(_FromFormat, 'undefined', <<>>, _Options) ->

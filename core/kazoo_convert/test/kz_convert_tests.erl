@@ -210,7 +210,7 @@ test_tiff_to_pdf_binary_output_binary() ->
                                             ,<<"application/pdf">>
                                             ,From
                                             ,[{<<"job_id">>, JobId}
-                                            ,{<<"output_type">>, binary}]
+                                            ,{<<"output_type">>, 'binary'}]
                                             )
                   )
     ].
@@ -221,7 +221,7 @@ test_tiff_to_pdf_tuple_output_binary() ->
     [?_assertMatch({'ok', _}, kz_convert:fax(<<"image/tiff">>
                                             ,<<"application/pdf">>
                                             ,{'file', Src}
-                                            ,[{<<"job_id">>, JobId}, {<<"output_type">>, binary}]
+                                            ,[{<<"job_id">>, JobId}, {<<"output_type">>, 'binary'}]
                                             )
                   )
     ].
@@ -232,7 +232,7 @@ test_tiff_to_tiff_binary_output_binary() ->
     [?_assertMatch({'ok', _}, kz_convert:fax(<<"image/tiff">>
                                             ,<<"image/tiff">>
                                             ,From
-                                            ,[{<<"job_id">>, JobId}, {<<"output_type">>, binary}]
+                                            ,[{<<"job_id">>, JobId}, {<<"output_type">>, 'binary'}]
                                             )
                   )
     ].
@@ -243,7 +243,7 @@ test_tiff_to_tiff_tuple_output_binary() ->
     [?_assertMatch({'ok', _}, kz_convert:fax(<<"image/tiff">>
                                             ,<<"image/tiff">>
                                             ,{'file', Src}
-                                            ,[{<<"job_id">>, JobId}, {<<"output_type">>, binary}]
+                                            ,[{<<"job_id">>, JobId}, {<<"output_type">>, 'binary'}]
                                             )
                   )
     ].
@@ -254,7 +254,7 @@ test_pdf_to_tiff_binary_output_binary() ->
     [?_assertMatch({'ok', _}, kz_convert:fax(<<"application/pdf">>
                                             ,<<"image/tiff">>
                                             ,From
-                                            ,[{<<"job_id">>, JobId},{<<"output_type">>, binary}]
+                                            ,[{<<"job_id">>, JobId},{<<"output_type">>, 'binary'}]
                                             )
                   )
     ].
@@ -265,9 +265,9 @@ test_pdf_to_tiff_tuple_output_binary() ->
     [?_assertMatch({'ok', _}, kz_convert:fax(<<"application/pdf">>
                                             ,<<"image/tiff">>
                                             ,{'file', Src}
-                                            ,[{<<"job_id">>, JobId}, {<<"output_type">>, binary}]
+                                            ,[{<<"job_id">>, JobId}, {<<"output_type">>, 'binary'}]
                                             )
-                   )
+                  )
     ].
 
 test_openoffice_to_pdf_binary_output_binary() ->
@@ -276,7 +276,7 @@ test_openoffice_to_pdf_binary_output_binary() ->
     [?_assertMatch({'ok', _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
                                             ,<<"application/pdf">>
                                             ,From
-                                            ,[{<<"job_id">>, JobId},{<<"output_type">>, binary}]
+                                            ,[{<<"job_id">>, JobId},{<<"output_type">>, 'binary'}]
                                             )
                   )
     ].
@@ -287,7 +287,8 @@ test_openoffice_to_pdf_tuple_output_binary() ->
     [?_assertMatch({'ok', _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
                                             ,<<"application/pdf">>
                                             ,{'file', Src}
-                                            ,[{<<"job_id">>, JobId},{<<"output_type">>, binary}]
+                                            ,[{<<"job_id">>, JobId}
+                                             ,{<<"output_type">>, 'binary'}]
                                             )
                   )
     ].
@@ -299,7 +300,7 @@ test_openoffice_to_tiff_binary_output_binary() ->
                                             ,<<"image/tiff">>
                                             ,From
                                             ,[{<<"job_id">>, JobId}
-                                            ,{<<"output_type">>, binary}]
+                                             ,{<<"output_type">>, 'binary'}]
                                             )
                   )
     ].
@@ -374,7 +375,7 @@ test_pdf_to_tiff_binary_invalid() ->
                                  ,[{<<"job_id">>, JobId}]
                                  )
                   )
-        ].
+    ].
 
 test_pdf_to_tiff_tuple_invalid() ->
     JobId = kz_binary:rand_hex(16),

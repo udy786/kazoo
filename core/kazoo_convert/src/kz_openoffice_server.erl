@@ -74,8 +74,8 @@ add(Source, Options) ->
                       {'stop', any()}.
 init([]) ->
     {'ok', #state{
-     'timer_ref' = start_timer(?TIMEOUT_DEQUEUE)
-    }}.
+              'timer_ref' = start_timer(?TIMEOUT_DEQUEUE)
+             }}.
 
 %%------------------------------------------------------------------------------
 %% @doc Handling call messages.

@@ -29473,7 +29473,7 @@
                 },
                 "convert_image_command": {
                     "default": "convert $FROM -resample 204x98 -units PixelsPerInch -compress group4 -size 1728x1078 $TO",
-                    "description": "The command to resample tiffs and convert supported images to tiff",
+                    "description": "The command to resample a tiff file to a fax compatible format or convert a supported image/* format to a tiff",
                     "type": "string"
                 },
                 "convert_openoffice_command": {

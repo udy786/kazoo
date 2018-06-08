@@ -11,7 +11,7 @@
 -include("kz_convert.hrl").
 
 -spec convert_fax_file(any(), any(), any()) ->
-                     {'ok', any()} | {'error', any()}.
+                              {'ok', any()} | {'error', any()}.
 convert_fax_file(FromFile, ToFormat, WorkDir)
   when is_binary(FromFile),
        is_binary(ToFormat),
@@ -30,11 +30,11 @@ convert_fax_file(FromFile, ToFormat, WorkDir)
     end;
 convert_fax_file(FromFile, ToFormat, WorkDir) ->
     convert_fax_file(kz_term:to_binary(FromFile)
-                  ,kz_term:to_binary(ToFormat)
-                  ,kz_term:to_binary(WorkDir)
-                  ).
+                    ,kz_term:to_binary(ToFormat)
+                    ,kz_term:to_binary(WorkDir)
+                    ).
 -spec do_convert(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:proplist()) ->
-    'ok'|'error'.
+                        'ok'|'error'.
 do_convert(FromFile, FromMime, ToMime, Content, Options) ->
     case kz_convert:fax(FromMime, ToMime, Content, Options) of
         { 'ok', OutputFile } ->
@@ -44,7 +44,7 @@ do_convert(FromFile, FromMime, ToMime, Content, Options) ->
     end.
 
 -spec convert_fax_file(any(), any()) ->
-                     {'ok', any()} | {'error', any()}.
+                              {'ok', any()} | {'error', any()}.
 convert_fax_file(FromFile, ToFormat)
   when is_binary(FromFile),
        is_binary(ToFormat) ->
