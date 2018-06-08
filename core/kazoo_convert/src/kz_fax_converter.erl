@@ -30,15 +30,18 @@
 %% <ul>
 %% <li><strong>job_id:</strong> the unique ID of the job (like a fax job_id).
 %% Used for naming the output file with the extension derived from the `To' format</li>
-%% <li><strong>output_type:</strong> return the converted doc as a binary containing
-%% the contensts or a path to the converted file.</li>
+%% <li><strong>output_type:</strong> return the converted doc as a raw `binary' containing
+%% the contensts of the file or `path' to recieve a path to the converted file in the response.
+%% The default is `path'.</li>
 %% <li><strong>tmp_dir:</strong> the working directory where the conversion will take place.</li>
 %% </ul>
 %%
-%% File formats:
-%% It deletes any files created in the process, including the input file
-%% if specified. If `output_type' is `path' the file converted file will be returned
-%% and will not be deleted.
+%% Cache file handling:
+%% The converter (and any alternative modules) should always delete any files created in the process,
+%% including the input file if the {'file', Filepath} `Content' format is specified.
+%% If `output_type' is `path' the file converted file will be returned and deletion of this file will be
+%% the responsiblity of the caller.
+%%
 %% @end
 %%------------------------------------------------------------------------------
 -spec convert(kz_term:ne_binary(), kz_term:ne_binary(), binary()|{'file', filename:name()}, kz_term:proplist()) ->
