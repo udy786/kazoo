@@ -54,7 +54,7 @@ convert(From, To, Content, Opts) ->
     lager:info("converting document ~s from ~s to ~s", [Filename, From, To]),
     case run_convert(eval_format(From, To), To, Filename, Options) of
         {'ok', _}=Ok ->
-            lager:info("succesfully converted file: ~s to format: ~s", [Filename, Content]
+            lager:info("succesfully converted file: ~s to format: ~s", [Filename, To]),
             Ok;
         {'error', Message}=Error ->
             lager:error("conversion failed with error: ~p", [Message]),
@@ -95,7 +95,7 @@ eval_format(CT, ?PDF_MIME) when ?OPENOFFICE_COMPATIBLE(CT) ->
     [fun openoffice_to_pdf/2
     ];
 eval_format(FromFormat, ToFormat) ->
-    {'error', <<"invalid conversion formats: ", FromFormat/binary, " to: ", ToFormat/binary>>}.
+    {'error', <<"invalid conversion requested: ", FromFormat/binary, " to: ", ToFormat/binary>>}.
 
 -spec run_convert({atom(), kz_term:ne_binary()}, kz_term:ne_binary(), kz_term:ne_binary(), kz_term:proplist()) -> kz_term:list().
 run_convert({'error', _}=Error, _ToFormat, _FilePath, _Options) ->
