@@ -1122,7 +1122,7 @@ app(AppNameOrId) ->
                                                             {'error', any()}.
 find_app(Db, Name) ->
     ViewOptions = [{'key', Name}
-                   ,'include_docs'
+                  ,'include_docs'
                   ],
     kz_datamgr:get_single_result(Db, ?CB_APPS_STORE_LIST, ViewOptions).
 
