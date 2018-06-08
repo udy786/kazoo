@@ -25,4 +25,4 @@ start(_Type, _Args) ->
 %%------------------------------------------------------------------------------
 -spec stop(any()) -> any().
 stop(_State) ->
-    kz_openoffice_server_sup:stop().
+    'ok'.
