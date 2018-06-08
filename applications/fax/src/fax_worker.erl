@@ -288,31 +288,26 @@ handle_cast('prepare_job', #state{job_id=JobId
                                  ,job=JObj
                                  }=State) ->
     send_status(State, <<"fetching document to send">>, ?FAX_PREPARE, 'undefined'),
-    case fetch_document(JObj) of
-        {'ok', 200, Headers, Content} ->
+    case fetch_document(JobId, JObj) of
+        {'ok', FilePath} ->
             send_status(State, <<"preparing document to send">>, ?FAX_PREPARE, 'undefined'),
-            case maybe_convert_content(JobId, Headers, Content) of
-                {'ok', Filepath} ->
-                    gen_server:cast(self(), 'count_pages'),
-                    {'noreply', State#state{file=Filepath}};
-                {'error', Cause} ->
-                    send_error_status(State, Cause),
-                    {Resp, Doc} = release_failed_job('bad_file', Cause, JObj),
-                    gen_server:cast(self(), 'stop'),
-                    {'noreply', State#state{job=Doc, resp = Resp}}
-            end;
-        {'ok', Status, _, _} ->
-            lager:debug("failed to fetch file for job: http response ~p", [Status]),
-            _ = send_error_status(State, integer_to_binary(Status)),
+            gen_server:cast(self(), 'count_pages'),
+            {'noreply', State#state{file=Filepath}};
+        {'error', 'fetch_failed', Status} ->
+            _ = send_error_status(State, Status),
             {Resp, Doc} = release_failed_job('fetch_failed', Status, JObj),
             gen_server:cast(self(), 'stop'),
             {'noreply', State#state{job=Doc, resp = Resp}};
-        {'error', Reason} ->
-            lager:debug("failed to fetch file for job: ~p", [Reason]),
-            send_error_status(State, <<"failed to fetch file for job">>),
-            {Resp, Doc} = release_failed_job('fetch_error', Reason, JObj),
+        {'error', 'fetch_error', Error} ->
+            send_error_status(State, Error),
+            {Resp, Doc} = release_failed_job('fetch_error', Error, JObj),
             gen_server:cast(self(), 'stop'),
-            {'noreply', State#state{job=Doc, resp = Resp}}
+            {'noreply', State#state{job=Doc, resp=Resp}};
+        {'error', Message} ->
+            send_error_status(State, Message),
+            {Resp, Doc} = release_failed_job('bad_file', Message, JObj),
+            gen_server:cast(self(), 'stop'),
+            {'noreply', State#state{job=Doc, resp=Resp}}
     end;
 handle_cast('count_pages', #state{file=File
                                  ,job=JObj
@@ -812,22 +807,25 @@ elapsed_time(JObj) ->
     Created = kz_doc:created(JObj, Now),
     Now - Created.
 
--spec fetch_document(kz_json:object()) -> kz_http:ret().
-fetch_document(JObj) ->
+-spec fetch_document(kz_term:ne_binary(), kz_json:object()) ->
+                        {'ok', filename:file()}|{'error', any()}.
+fetch_document(JobId, JObj) ->
     case kz_doc:attachment_names(JObj) of
-        [] -> fetch_document_from_url(JObj);
-        AttachmentNames -> fetch_document_from_attachment(JObj, AttachmentNames)
+        [] -> fetch_document_from_url(JobId, JObj);
+        AttachmentNames -> fetch_document_from_attachment(JobId, JObj, AttachmentNames)
     end.
 
--spec fetch_document_from_attachment(kz_json:object(), kz_term:ne_binaries()) -> kz_http:ret().
-fetch_document_from_attachment(JObj, [AttachmentName|_]) ->
+-spec fetch_document_from_attachment(kz_term:ne_binary(), kz_json:object(), kz_term:ne_binaries()) ->
+                                            {'ok', filename:file()}|{'error', any()}
+fetch_document_from_attachment(JobId, JObj, [AttachmentName|_]) ->
     DefaultContentType = kz_mime:from_extension(filename:extension(AttachmentName)),
     ContentType = kz_doc:attachment_content_type(JObj, AttachmentName, DefaultContentType),
-    Props = [{"content-type", ContentType}],
-    {'ok', Contents} = kz_datamgr:fetch_attachment(?KZ_FAXES_DB, kz_doc:id(JObj), AttachmentName),
-    {'ok', 200, Props, Contents}.
+    {'ok', Content} = kz_datamgr:fetch_attachment(?KZ_FAXES_DB, kz_doc:id(JObj), AttachmentName) ->
+    TmpDir = kapps_config:get_binary(?CONFIG_CAT, <<"file_cache_path">>, <<"/tmp/">>),
+    maybe_convert_content(JobId, ContentType, Content, TmpDir).
 
--spec fetch_document_from_url(kz_json:object()) -> kz_http:ret().
+-spec fetch_document_from_url(kz_term:ne_binary(), kz_json:object()) ->
+                                     {'ok', filename:file()}|{'error', any()}|{'error', atom(), any()}
 fetch_document_from_url(JObj) ->
     FetchRequest = kz_json:get_value(<<"document">>, JObj),
     Url = kz_json:get_string_value(<<"url">>, FetchRequest),
@@ -840,24 +838,33 @@ fetch_document_from_url(JObj) ->
                 ]),
     Body = kz_json:get_string_value(<<"content">>, FetchRequest, ""),
     lager:debug("making ~s request to '~s'", [Method, Url]),
-    kz_http:req(Method, Url, Headers, Body).
-
--spec maybe_convert_content(kz_term:ne_binary(), kz_term:proplist(), kz_term:ne_binary()) ->
-                                   {'ok', filename:file()}|{'error', any()}.
-maybe_convert_content(JobId, Headers, Content) ->
-    CT = props:get_value("content-type", Headers, <<"application/octet-stream">>),
-    FromFormat = fax_util:normalize_content_type(CT),
-    TmpDir = kapps_config:get_binary(?CONFIG_CAT, <<"file_cache_path">>, <<"/tmp/">>),
-    maybe_convert_content(TmpDir, JobId, FromFormat, Content).
+    case kz_http:req(Method, Url, Headers, Body) of
+        {'ok', 200, Headers, Content} ->
+            CT = props:get_value("content-type", Headers, <<"application/octet-stream">>),
+            FromFormat = fax_util:normalize_content_type(CT),
+            TmpDir = kapps_config:get_binary(?CONFIG_CAT, <<"file_cache_path">>, <<"/tmp/">>),
+            convert_content(JobId, FromFormat, Content, TmpDir)
+        {'ok', Status, _, _} ->
+            lager:debug("failed to fetch file for job: http response ~p", [Status]),
+            {'error', 'fetch_failed', Status}
+        {'error', Reason} ->
+            lager:debug("failed to fetch file for job: ~p", [Reason]),
+            {'error', 'fetch_error', Reason}
+    end.
 
 -spec maybe_convert_content(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
                                    {'ok', filename:file()}|{'error', any()}.
-maybe_convert_content(TmpDir, JobId, <<"image/tiff">>, Content) ->
+maybe_convert_content(JobId, <<"image/tiff">>, Content, TmpDir) ->
     Filename = filename:join(TmpDir, [JobId, <<".tiff">>]),
     kz_util:write_file(Filename, Content),
     {'ok', Filename};
-maybe_convert_content(TmpDir, JobId, FromFormat, Content) ->
-    lager:info("you want to fax a ~s file... sure, whatever, converting to tiff...", [FromFormat]),
+maybe_convert_content(JobId, FromFormat, Content, TmpDir) ->
+    lager:warning("converting legacy fax attachment in format: ~s", [FromFormat]),
+    convert_content(JobId, FromFormat, Content, TmpDir).
+
+-spec convert_content(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
+                                   {'ok', filename:file()}|{'error', any()}.
+convert_content(JobId, FromFormat, Content, TmpDir) ->
     Options = [{<<"output_type">>, 'path'}
               ,{<<"job_id">>, JobId}
               ,{<<"tmp_dir">>, TmpDir}

@@ -12,7 +12,7 @@
 -include_lib("kazoo_convert/include/kz_convert.hrl").
 
 %%------------------------------------------------------------------------------
-%% @doc This function will convert the `Content' from the `To' mimetype to the
+%% @doc This function converts the `Content' from the `To' mimetype to the
 %% `From' mimetype.
 %%
 %% Arguments Description:
@@ -23,15 +23,22 @@
 %% Content is to be converted.</li>
 %% <li><strong>Content:</strong> content can be filepath to the source file or
 %% a binary containing the contents of the file to be converted.</li>
+%% <li><strong>Optinos:</strong> a proplist of the converter options</li>
 %% </ul>
 %%
-%% Options Description:
+%% Options:
 %% <ul>
 %% <li><strong>job_id:</strong> the unique ID of the job (like a fax job_id).
 %% Used for naming the output file with the extension derived from the `To' format</li>
 %% <li><strong>output_type:</strong> return the converted doc as a binary containing
 %% the contensts or a path to the converted file.</li>
+%% <li><strong>tmp_dir:</strong> the working directory where the conversion will take place.</li>
 %% </ul>
+%%
+%% File formats:
+%% It deletes any files created in the process, including the input file
+%% if specified. If `output_type' is `path' the file converted file will be returned
+%% and will not be deleted.
 %% @end
 %%------------------------------------------------------------------------------
 -spec convert(kz_term:ne_binary(), kz_term:ne_binary(), binary()|{'file', filename:name()}, kz_term:proplist()) ->
@@ -44,8 +51,15 @@ convert(From, To, Content, Opts) ->
                  | props:delete_keys([<<"job_id">>], Opts)
                 ]),
     Filename = save_file(Content, Options),
-    lager:debug("converting document ~s from ~s to ~s", [Filename, From, To]),
-    run_convert(eval_format(From, To), To, Filename, Options).
+    lager:info("converting document ~s from ~s to ~s", [Filename, From, To]),
+    case run_convert(eval_format(From, To), To, Filename, Options) of
+        {'ok', _}=Ok ->
+            lager:info("succesfully converted file: ~s to format: ~s", [Filename, Content]
+            Ok;
+        {'error', Message}=Error ->
+            lager:error("conversion failed with error: ~p", [Message]),
+            Error
+    end.
 
 -spec eval_format(kz_term:ne_binary(), kz_term:ne_binary()) -> kz_term:list().
 eval_format(<<"image/", _SubType/binary>>, ?TIFF_MIME) ->
@@ -81,8 +95,7 @@ eval_format(CT, ?PDF_MIME) when ?OPENOFFICE_COMPATIBLE(CT) ->
     [fun openoffice_to_pdf/2
     ];
 eval_format(FromFormat, ToFormat) ->
-    lager:error("invalid conversion requested from format: ~s to format: ~s", [FromFormat, ToFormat]),
-    {'error', <<"invalid request to convert from format: ", FromFormat/binary, " to format: ", ToFormat/binary>>}.
+    {'error', <<"invalid conversion formats: ", FromFormat/binary, " to: ", ToFormat/binary>>}.
 
 -spec run_convert({atom(), kz_term:ne_binary()}, kz_term:ne_binary(), kz_term:ne_binary(), kz_term:proplist()) -> kz_term:list().
 run_convert({'error', _}=Error, _ToFormat, _FilePath, _Options) ->
@@ -92,7 +105,6 @@ run_convert([Operation|Operations], ToFormat, FilePath, Options) ->
         {'ok', OutputPath} ->
             maybe_delete_previous_file(FilePath, OutputPath),
             run_convert(Operations, ToFormat, OutputPath, Options);
-
         Error -> Error
     end;
 run_convert([], ToFormat, FilePath, Options) ->
@@ -156,7 +168,6 @@ openoffice_to_pdf(FromPath, Options) ->
             case ?SERIALIZE_OPENOFFICE of
                 'true' -> kz_openoffice_server:add(FromPath, Options);
                 'false' -> do_openoffice_to_pdf(FromPath, Options)
-
             end;
         'false' ->
             {'error', <<"openoffice compatible conversion is unsupported">>}
@@ -165,9 +176,9 @@ openoffice_to_pdf(FromPath, Options) ->
 -spec do_openoffice_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
 do_openoffice_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
     FinalToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
-    ToPath = filename:join(TmpDir, [filename:rootname(filename:basename(FromPath)), <<".pdf">>]),
+    TmpPath = filename:join(TmpDir, [filename:rootname(filename:basename(FromPath)), <<".pdf">>]),
     case run_convert_command(?CONVERT_OPENOFFICE_COMMAND, FromPath, FinalToPath, TmpDir) of
-        {'ok', _} -> maybe_rename_tmp_file(ToPath, FinalToPath);
+        {'ok', _} -> maybe_rename_tmp_file(TmpPath, FinalToPath);
         Else -> Else
     end.
 
@@ -177,9 +188,11 @@ maybe_rename_tmp_file(TmpPath, NewPath) ->
     case filelib:is_file(NewPath) of
         'true' -> {'ok', NewPath};
         'false' ->
-            case file:rename(TmpPath, NewPath) of
-                'ok' -> {'ok', NewPath};
-                Else -> {'error', Else}
+            case filelib:is_file(TmpPath) of
+                'true' ->
+                    kz_util:rename_file(TmpPath, NewPath),
+                    {'ok', NewPath};
+                'false' -> {'error', <<"no output file from conversion">>}
             end
     end.
 
@@ -209,16 +222,15 @@ validate_output(Mime, _FilePath, _Options) ->
 
 -spec run_validate_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
 run_validate_command(Command, FromPath, ToPath, TmpDir) ->
-    %Cmd = io_lib:format(Command, [FromPath, ToPath]),
     lager:debug("validating file with command: ~s", [Command]),
     run_command(Command, FromPath, ToPath, TmpDir).
 
 -spec run_convert_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
 run_convert_command(Command, FromPath, ToPath, TmpDir) ->
-    %Cmd = io_lib:format(Command, [FromPath, ToPath, TmpDir]),
     lager:debug("converting file with command: ~s", [Command]),
     case run_command(Command, FromPath, ToPath, TmpDir) of
         {'ok', <<"success">>} ->
+            lager:debug("successfully converted file ~s", [FromPath]),
             {'ok', ToPath};
         {'error', Msg} ->
             lager:debug("failed to convert file with error: ~p", [Msg]),
@@ -242,7 +254,7 @@ run_command(Command, FromPath, ToPath, TmpDir) ->
             erlang:port_info(Port, os_pid),
             do_run_command(Port, [], OsPid);
         _ ->
-            {'error', <<"command failed">>}
+            {'error', <<"command init failed">>}
     end.
 
 -spec do_run_command({atom(), kz_term:ne_binary()}, list(), list()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.

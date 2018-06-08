@@ -266,12 +266,14 @@ handle_message(#state{filename=Filename
         {'ok', FileContents} ->
             case fax_util:save_fax_docs([Doc], FileContents, <<"image/tiff">>) of
                 'ok' ->
-                    lager:debug("smtp fax document saved"),
-                    kz_util:delete_file(Filename);
-                {'error', Error} -> maybe_faxbox_log(State#state{errors=[Error]})
+                    lager:debug("smtp fax document saved");
+                {'error', Error} ->
+                    lager:error("failed saving fax document with message: ~p", [Error]),
+                    maybe_faxbox_log(State#state{errors=[Error]})
             end;
-        _Else ->
-            Error = kz_term:to_binary(io_lib:format("error reading attachment ~s", [Filename])),
+        {'error', Error} ->
+            lager:error("failed converting attachment with error: ~p", [Error]),
+            Error = kz_term:to_binary(io_lib:format("error converting attachment ~s", [Filename])),
             maybe_faxbox_log(State#state{errors=[Error]})
     end.
 
