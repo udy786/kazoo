@@ -289,7 +289,7 @@ handle_cast('prepare_job', #state{job_id=JobId
                                  }=State) ->
     send_status(State, <<"fetching document to send">>, ?FAX_PREPARE, 'undefined'),
     case fetch_document(JobId, JObj) of
-        {'ok', FilePath} ->
+        {'ok', Filepath} ->
             send_status(State, <<"preparing document to send">>, ?FAX_PREPARE, 'undefined'),
             gen_server:cast(self(), 'count_pages'),
             {'noreply', State#state{file=Filepath}};
@@ -816,17 +816,17 @@ fetch_document(JobId, JObj) ->
     end.
 
 -spec fetch_document_from_attachment(kz_term:ne_binary(), kz_json:object(), kz_term:ne_binaries()) ->
-                                            {'ok', filename:file()}|{'error', any()}
+                                            {'ok', filename:file()}|{'error', any()}.
 fetch_document_from_attachment(JobId, JObj, [AttachmentName|_]) ->
     DefaultContentType = kz_mime:from_extension(filename:extension(AttachmentName)),
     ContentType = kz_doc:attachment_content_type(JObj, AttachmentName, DefaultContentType),
-    {'ok', Content} = kz_datamgr:fetch_attachment(?KZ_FAXES_DB, kz_doc:id(JObj), AttachmentName) ->
+    {'ok', Content} = kz_datamgr:fetch_attachment(?KZ_FAXES_DB, kz_doc:id(JObj), AttachmentName),
     TmpDir = kapps_config:get_binary(?CONFIG_CAT, <<"file_cache_path">>, <<"/tmp/">>),
     maybe_convert_content(JobId, ContentType, Content, TmpDir).
 
 -spec fetch_document_from_url(kz_term:ne_binary(), kz_json:object()) ->
-                                     {'ok', filename:file()}|{'error', any()}|{'error', atom(), any()}
-fetch_document_from_url(JObj) ->
+                                     {'ok', filename:file()}|{'error', any()}|{'error', atom(), any()}.
+fetch_document_from_url(JobId, JObj) ->
     FetchRequest = kz_json:get_value(<<"document">>, JObj),
     Url = kz_json:get_string_value(<<"url">>, FetchRequest),
     Method = kz_term:to_atom(kz_json:get_value(<<"method">>, FetchRequest, <<"get">>), 'true'),
@@ -843,10 +843,10 @@ fetch_document_from_url(JObj) ->
             CT = props:get_value("content-type", Headers, <<"application/octet-stream">>),
             FromFormat = fax_util:normalize_content_type(CT),
             TmpDir = kapps_config:get_binary(?CONFIG_CAT, <<"file_cache_path">>, <<"/tmp/">>),
-            convert_content(JobId, FromFormat, Content, TmpDir)
+            convert_content(JobId, FromFormat, Content, TmpDir);
         {'ok', Status, _, _} ->
             lager:debug("failed to fetch file for job: http response ~p", [Status]),
-            {'error', 'fetch_failed', Status}
+            {'error', 'fetch_failed', Status};
         {'error', Reason} ->
             lager:debug("failed to fetch file for job: ~p", [Reason]),
             {'error', 'fetch_error', Reason}
