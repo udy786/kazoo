@@ -1,10 +1,3 @@
-/*
-Section: Kazoo Fax Converter
-Title: Kazoo Convert
-Language: en-US
-Version: 4.2
-*/
-
 # Kazoo Fax Converter
 
 This module provide a consistant core interface for fax file format conversions. The module is enabled as the default fax converter, but this can be easily extended by adding other modules to the converter.
@@ -12,14 +5,14 @@ This module provide a consistant core interface for fax file format conversions.
 ## Fax Converter Installation Considerations
 When using the default converter module several system dependencies were introduced. For default conversions from PDF to TIFF, The system packages `ghostscript` must be installed, for default conversion from tiff to pdf, `libtiff-tools` must be installed. If conversion to openxml formatted documents (docx, doc, xlsx, xls) is enabled, the dependency `libreoffice` must be installed. If a dependency is not installed, the converter command will simply fail on the system and the fax converter will return an error. If the converters commands are substituted this.
 
-## Enviornment variables provided to commadns
+## Environment variables provided to all commands
 Three enviornment variables are provided to every command to ensure ordering of arguments can be provided in any order.
 
 | Variable | Description |
-| --- | --- | 
+| --- | --- |
 | `$From` | The source filename for the conversion |
-| `$TO` | The destination filename for the conversion | 
-| `$WORKDIR` | The working directory for the conversion | 
+| `$TO` | The destination filename for the conversion |
+| `$WORKDIR` | The working directory for the conversion |
 
 The `$TO` and `$FROM` environment variables are generally used in most commands, but some commands which are intended to operate in batch modes require a work dir instead of a destination file name.
 
