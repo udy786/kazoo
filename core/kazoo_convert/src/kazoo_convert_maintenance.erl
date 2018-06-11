@@ -94,7 +94,7 @@ listen_to_port(Port, Exe) ->
             io:format("* ~s:\n\t~s\n", [Exe, Str]),
             lager:debug("version for ~s: ~s", [Exe, Str]);
         {Port, {'exit_status', 0}} -> 'ok';
-        {Port, {'exit_status', _}} -> no_executable(Exe)
+        {Port, {'exit_status', _}} -> print_no_executable(Exe)
     end.
 
 find_commands(Cmds) ->
