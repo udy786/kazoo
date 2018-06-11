@@ -8,11 +8,12 @@
 -export([fax/3, fax/4
         ]).
 
--include("kz_convert.hrl").
+-include_lib("kazoo_convert/include/kz_convert.hrl").
 
 %% @equiv fax(FromFormat, ToFormat, Content, [])
--spec fax(kz_tem:api_ne_binary(), kz_term:api_ne_binary(), binary()|{'file', filename:name()}) ->
-                 {'ok', any()} |
+-spec fax(kz_term:api_ne_binary(), kz_term:api_ne_binary(), binary()|{'file', filename:name()}) ->
+                 {'ok', any()}|
+                 {'ok', kz_term:ne_binary(), {integer(), non_neg_integer()}}|
                  {'error', any()}.
 fax(FromFormat, ToFormat, Content) ->
     fax(FromFormat, ToFormat, Content, []).
@@ -45,7 +46,8 @@ fax(FromFormat, ToFormat, Content) ->
 %% @end
 %%------------------------------------------------------------------------------
 -spec fax(kz_term:api_ne_binary(), kz_term:api_ne_binary(), binary()|{'file', filename:name()}, kz_term:proplist()) ->
-                 {'ok', any()} |
+                 {'ok', any()}|
+                 {'ok', kz_term:ne_binary(), {integer(), non_neg_integer()}}|
                  {'error', any()}.
 fax('undefined', _ToFormat, <<>>, _Options) ->
     {'error', <<"undefined from format">>};

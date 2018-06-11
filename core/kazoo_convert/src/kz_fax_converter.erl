@@ -45,7 +45,7 @@
 %% @end
 %%------------------------------------------------------------------------------
 -spec convert(kz_term:ne_binary(), kz_term:ne_binary(), binary()|{'file', filename:name()}, kz_term:proplist()) ->
-                     {ok, any()} | {error, any()}.
+                     {'ok', any()}|{integer(), non_neg_integer()}|{'error', any()}.
 convert(From, To, Content, Opts) ->
     Options = maps:from_list(
                 [{<<"from_format">>, From}
@@ -57,6 +57,9 @@ convert(From, To, Content, Opts) ->
     lager:info("converting document ~s from ~s to ~s", [Filename, From, To]),
     case run_convert(eval_format(From, To), To, Filename, Options) of
         {'ok', _}=Ok ->
+            lager:info("succesfully converted file: ~s to format: ~s", [Filename, To]),
+            Ok;
+        {'ok', _, _}=Ok ->
             lager:info("succesfully converted file: ~s to format: ~s", [Filename, To]),
             Ok;
         {'error', Message}=Error ->
@@ -113,22 +116,34 @@ run_convert([Operation|Operations], ToFormat, FilePath, Options) ->
 run_convert([], ToFormat, FilePath, Options) ->
     case validate_output(ToFormat, FilePath, Options) of
         {'ok', _} ->
-            format_output(FilePath, Options);
+            format_output(ToFormat, FilePath, Options);
         Error -> Error
     end.
 
--spec format_output(kz_term:ne_binary(), map()) ->
-                           {'ok', kz_term:ne_binary()}|{'error', any()}.
-format_output(FilePath, #{<<"output_type">> := 'binary'}) ->
+-spec format_output(kz_term:ne_binary(), kz_term:ne_binary(), map()) ->
+                           {'ok', any()}|{integer(), non_neg_integer()}|{'error', any()}.
+format_output(?TIFF_MIME, FilePath, #{<<"output_type">> := 'path', <<"count_pages">> := 'true'}) ->
+    {'ok', FilePath, get_sizes(FilePath)};
+format_output(?TIFF_MIME, FilePath, #{<<"output_type">> := 'binary', <<"count_pages">> := 'true'}) ->
     case file:read_file(FilePath) of
-        {'ok', _}=Ok ->
+        {'ok', Content} ->
+            Sizes = get_sizes(FilePath),
             kz_util:delete_file(FilePath),
-            Ok;
+            {'ok', Content, Sizes};
         Error -> Error
     end;
-format_output(FilePath, #{<<"output_type">> := 'path'}) ->
+format_output(?TIFF_MIME, FilePath, #{<<"count_pages">> := 'true'}) ->
+    {'ok', FilePath, get_sizes(FilePath)};
+format_output(_FromFormat, FilePath, #{<<"output_type">> := 'binary'}) ->
+    case file:read_file(FilePath) of
+        {'ok', Content} ->
+            kz_util:delete_file(FilePath),
+            {'ok', Content};
+        Error -> Error
+    end;
+format_output(_FromFormat, FilePath, #{<<"output_type">> := 'path'}) ->
     {'ok', FilePath};
-format_output(FilePath, _Options) ->
+format_output(_FromFormat, FilePath, _Options) ->
     {'ok', FilePath}.
 
 -spec maybe_delete_previous_file(kz_term:ne_binary(), kz_term:ne_binary()) -> 'ok'.
@@ -232,48 +247,36 @@ run_validate_command(Command, FromPath, ToPath, TmpDir) ->
 run_convert_command(Command, FromPath, ToPath, TmpDir) ->
     lager:debug("converting file with command: ~s", [Command]),
     case run_command(Command, FromPath, ToPath, TmpDir) of
-        {'ok', <<"success">>} ->
+        {'ok', _} ->
             lager:debug("successfully converted file ~s", [FromPath]),
             {'ok', ToPath};
-        {'error', Msg} ->
-            lager:debug("failed to convert file with error: ~p", [Msg]),
+        {'error', Reason, Msg} ->
+            lager:debug("failed to convert file with reason: ~p, output: ~p", [Reason, Msg]),
             _ = file:delete(ToPath),
-            {'error', Msg}
-    end.
-
-run_command(Command, FromPath, ToPath, TmpDir) ->
-    Options = ['exit_status'
-              ,'use_stdio'
-              ,'stderr_to_stdout'
-              ,{env, [{"FROM", kz_term:to_list(FromPath)}
-                     ,{"TO", kz_term:to_list(ToPath)}
-                     ,{"WORKDIR", kz_term:to_list(TmpDir)}
-                     ]
-               }
-              ],
-    Port = erlang:open_port({'spawn', Command}, Options),
-    case erlang:port_info(Port, os_pid) of
-        {os_pid, OsPid} ->
-            erlang:port_info(Port, os_pid),
-            do_run_command(Port, [], OsPid);
-        _ ->
-            {'error', <<"command init failed">>}
-    end.
-
--spec do_run_command({atom(), kz_term:ne_binary()}, list(), list()) -> {'error', any()} | {'ok', kz_term:ne_binary()}.
-do_run_command(Port, Acc, OsPid) ->
-    Timeout = kapps_config:get_integer(?CONFIG_CAT, <<"convert_command_timeout">>, 120 * ?MILLISECONDS_IN_SECOND),
-    receive
-        {Port, {'data', Data}} ->
-            do_run_command(Port, Acc ++ Data, OsPid);
-        {Port, {'exit_status', 0}} ->
-            {'ok', <<"success">>};
-        {Port, {'exit_status', Status}} ->
-            lager:debug("command exited with non-zero status: ~p output: ~p", [Status, Acc]),
             {'error', <<"command failed">>}
-    after
-        Timeout ->
-            _ = os:cmd(io_lib:format("kill -9 ~p", [OsPid])),
-            {'error', <<"command timeout">>}
     end.
+
+-spec run_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
+                         {'error', atom(), kz_term:ne_binary()}|{'ok', kz_term:ne_binary()}.
+run_command(Command, FromPath, ToPath, TmpDir) ->
+    kz_os:cmd(Command
+             ,[{<<"FROM">>, FromPath}
+              ,{<<"TO">>, ToPath}
+              ,{<<"WORKDIR">>, TmpDir}
+              ]
+             ,[{<<"timeout">>
+               ,kapps_config:get_integer(?CONFIG_CAT, <<"convert_command_timeout">>, 120 * ?MILLISECONDS_IN_SECOND)
+               }]).
+
+-spec get_sizes(kz_term:ne_binary()) -> {integer(), non_neg_integer()}.
+get_sizes(Filename) ->
+    NumberOfPages = case kz_os:cmd(?COUNT_PAGES_CMD, [{<<"FILE">>, Filename}], [{<<"read_mode">>, 'stream'}]) of
+                        {'ok', Result} -> kz_term:to_integer(Result);
+                        _ -> 0
+                    end,
+    FileSize = filelib:file_size(kz_term:to_list(Filename)),
+    {NumberOfPages, FileSize}.
+
+
+
 

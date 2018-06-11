@@ -84,7 +84,6 @@
 -define(DEFAULT_RETRY_COUNT, kapps_config:get_integer(?CONFIG_CAT, <<"default_retry_count">>, 3)).
 -define(DEFAULT_COMPARE_FIELD, kapps_config:get_binary(?CONFIG_CAT, <<"default_compare_field">>, <<"result_cause">>)).
 
--define(COUNT_PAGES_CMD, <<"echo -n `tiffinfo ~s | grep 'Page Number' | grep -c 'P'`">>).
 
 -define(CALLFLOW_LIST, <<"callflows/listing_by_number">>).
 -define(ENSURE_CID_KEY, <<"ensure_valid_caller_id">>).
@@ -289,15 +288,36 @@ handle_cast('prepare_job', #state{job_id=JobId
                                  }=State) ->
     send_status(State, <<"fetching document to send">>, ?FAX_PREPARE, 'undefined'),
     case fetch_document(JobId, JObj) of
+        {'ok', Filepath, {PageCount, Size}} ->
+            send_status(State, <<"preparing document to send">>, ?FAX_PREPARE, 'undefined'),
+            Values = [{<<"pvt_pages">>, PageCount}
+                     ,{<<"pvt_size">>, Size}
+                     ],
+            case PageCount of
+                Num when Num == 0 ->
+                    _ = send_error_status(State, 'bad_file'),
+                    {Resp, Doc} = release_failed_job('bad_file', <<"file is empty">>, JObj),
+                    gen_server:cast(self(), 'stop'),
+                    State#state{job = kz_json:set_values(Values, Doc)
+                              ,pages = Num
+                              ,resp=Resp
+                              ,status = <<"unknown">>
+                              };
+                _ ->
+                    send_status(State, <<"preparing document to send">>, ?FAX_PREPARE, 'undefined'),
+                    State#state{job=kz_json:set_values(Values, JObj)
+                               ,file=Filepath
+                               ,pages=PageCount
+                               }
+            end;
         {'ok', Filepath} ->
             send_status(State, <<"preparing document to send">>, ?FAX_PREPARE, 'undefined'),
-            gen_server:cast(self(), 'count_pages'),
             {'noreply', State#state{file=Filepath}};
         {'error', 'fetch_failed', Status} ->
             _ = send_error_status(State, Status),
             {Resp, Doc} = release_failed_job('fetch_failed', Status, JObj),
             gen_server:cast(self(), 'stop'),
-            {'noreply', State#state{job=Doc, resp = Resp}};
+            {'noreply', State#state{job=Doc, resp=Resp}};
         {'error', 'fetch_error', Error} ->
             send_error_status(State, Error),
             {Resp, Doc} = release_failed_job('fetch_error', Error, JObj),
@@ -309,26 +329,6 @@ handle_cast('prepare_job', #state{job_id=JobId
             gen_server:cast(self(), 'stop'),
             {'noreply', State#state{job=Doc, resp=Resp}}
     end;
-handle_cast('count_pages', #state{file=File
-                                 ,job=JObj
-                                 }=State) ->
-    {NumberOfPages, FileSize} = get_sizes(File),
-    Values = [{<<"pvt_pages">>, NumberOfPages}
-             ,{<<"pvt_size">>, FileSize}
-             ],
-    NewState = case NumberOfPages of
-                   Num when Num == 0 ->
-                       State#state{job = kz_json:set_values(Values, JObj)
-                                  ,pages = Num
-                                  ,status = <<"unknown">>
-                                  };
-                   _ ->
-                       State#state{job=kz_json:set_values(Values, JObj)
-                                  ,pages=NumberOfPages
-                                  }
-               end,
-    gen_server:cast(self(), 'send'),
-    {'noreply', NewState};
 handle_cast('send', #state{job_id=JobId
                           ,job=JObj
                           ,queue_name=Q
@@ -868,20 +868,9 @@ convert_content(JobId, FromFormat, Content, TmpDir) ->
     Options = [{<<"output_type">>, 'path'}
               ,{<<"job_id">>, JobId}
               ,{<<"tmp_dir">>, TmpDir}
+              ,{<<"count_pages">>, 'true'}
               ],
     kz_convert:fax(FromFormat, <<"image/tiff">>, Content, Options).
-
--spec get_sizes(kz_term:ne_binary()) -> {integer(), non_neg_integer()}.
-get_sizes(OutputFile) when is_binary(OutputFile) ->
-    CmdCount = kapps_config:get_binary(?CONFIG_CAT, <<"count_pages_command">>, ?COUNT_PAGES_CMD),
-    Cmd = io_lib:format(CmdCount, [OutputFile]),
-    NumberOfPages = try Result = os:cmd(kz_term:to_list(Cmd)),
-                         kz_term:to_integer(Result)
-                    catch
-                        _:_ -> 0
-                    end,
-    FileSize = filelib:file_size(kz_term:to_list(OutputFile)),
-    {NumberOfPages, FileSize}.
 
 -spec send_fax(kz_term:ne_binary(), kz_json:object(), kz_term:ne_binary()) -> 'ok'.
 send_fax(JobId, JObj, Q) ->

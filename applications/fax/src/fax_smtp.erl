@@ -260,10 +260,16 @@ handle_message(#state{filename=Filename
     FromFormat = kz_mime:from_filename(Filename),
     Options = [{<<"output_type">>, 'binary'}
               ,{<<"job_id">>, kz_doc:id(Doc)}
+              ,{<<"count_pages">>, 'true'}
               ],
     case kz_convert:fax(FromFormat, <<"image/tiff">>, {'file', Filename}, Options) of
-        {'ok', FileContents} ->
-            case fax_util:save_fax_docs([Doc], FileContents, <<"image/tiff">>) of
+        {'ok', FileContents, {NumberOfPages, FileSize}} ->
+            NewDoc = kz_json:set_values([{<<"pvt_pages">>, NumberOfPages}
+                                        ,{<<"pvt_size">>, FileSize}
+                                        ]
+                                       ,Doc
+                                       ),
+            case fax_util:save_fax_docs([NewDoc], FileContents, <<"image/tiff">>) of
                 'ok' ->
                     lager:debug("smtp fax document saved");
                 {'error', Error} ->

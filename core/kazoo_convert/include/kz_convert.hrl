@@ -41,9 +41,12 @@
                                   "--convert-to pdf $FROM "
                                   "--outdir $WORKDIR "
                                   " 2>&1 "
-                                  "|egrep 'parser error|Error' && exit 1 || exit 0"
+                                  "|egrep 'parser error|Error' "
+                                  "&& exit 1 || exit 0"
                                 >>
        ).
+
+-define(COUNT_PAGES_CMD, <<"echo -n `tiffinfo $FILE | grep 'Page Number' | grep -c 'P'`">>).
 
 -define(VALIDATE_PDF_CMD, <<"gs -dNOPAUSE -dBATCH -sDEVICE=nullpage $FROM">>).
 
