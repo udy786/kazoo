@@ -119,7 +119,7 @@ cmd_receive({Port, MaxSize, Timeout, OwnerRef}=LoopParams, Acc) ->
         {'DOWN', OwnerRef, _, _, _} when OwnerRef =/= 'ok' ->
             lager:debug("parent died - no reason to continue"),
             {'error', 'parent_died', <<>>};
-		{Port, {data, {eol, Data}}} ->
+        {Port, {data, {eol, Data}}} ->
             NewAcc = <<Acc/binary,Data/binary,(kz_term:to_binary("\n"))/binary>>,
             case byte_size(NewAcc) of
                 Len when Len >= MaxSize ->
@@ -127,7 +127,7 @@ cmd_receive({Port, MaxSize, Timeout, OwnerRef}=LoopParams, Acc) ->
                     {'error', 'max_size', NewAcc};
                 _ -> cmd_receive(LoopParams, NewAcc)
             end;
-		{Port, {data, {noeol, Data}}} ->
+        {Port, {data, {noeol, Data}}} ->
             NewAcc = <<Acc/binary,Data/binary>>,
             case byte_size(NewAcc) of
                 Len when Len >= MaxSize ->
@@ -135,7 +135,7 @@ cmd_receive({Port, MaxSize, Timeout, OwnerRef}=LoopParams, Acc) ->
                     {'error', 'max_size', NewAcc};
                 _ -> cmd_receive(LoopParams, NewAcc)
             end;
-		{Port, {data, Data}} ->
+        {Port, {data, Data}} ->
             NewAcc = <<Acc/binary,Data/binary>>,
             case byte_size(NewAcc) of
                 Len when Len >= MaxSize ->
