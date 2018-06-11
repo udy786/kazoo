@@ -210,7 +210,7 @@ test_tiff_to_pdf_binary_output_binary() ->
                                             ,<<"application/pdf">>
                                             ,From
                                             ,[{<<"job_id">>, JobId}
-                                            ,{<<"output_type">>, 'binary'}]
+                                             ,{<<"output_type">>, 'binary'}]
                                             )
                   )
     ].

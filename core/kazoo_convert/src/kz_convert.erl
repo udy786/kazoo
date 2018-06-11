@@ -12,7 +12,8 @@
 
 %% @equiv fax(FromFormat, ToFormat, Content, [])
 -spec fax(kz_tem:api_ne_binary(), kz_term:api_ne_binary(), binary()|{'file', filename:name()}) ->
-                     {'ok', any()} | {'error', any()}.
+                 {'ok', any()} |
+                 {'error', any()}.
 fax(FromFormat, ToFormat, Content) ->
     fax(FromFormat, ToFormat, Content, []).
 
@@ -44,7 +45,8 @@ fax(FromFormat, ToFormat, Content) ->
 %% @end
 %%------------------------------------------------------------------------------
 -spec fax(kz_term:api_ne_binary(), kz_term:api_ne_binary(), binary()|{'file', filename:name()}, kz_term:proplist()) ->
-                 {'ok', any()} | {'error', any()}.
+                 {'ok', any()} |
+                 {'error', any()}.
 fax('undefined', _ToFormat, <<>>, _Options) ->
     {'error', <<"undefined from format">>};
 fax(_FromFormat, 'undefined', <<>>, _Options) ->
@@ -61,4 +63,3 @@ fax(FromFormat, ToFormat, Content, Options) ->
 -spec convert_to_module(kz_term:ne_binary()) -> atom().
 convert_to_module(Conversion) ->
     kz_term:to_atom(<<"kz_", Conversion/binary>>, 'true').
-
