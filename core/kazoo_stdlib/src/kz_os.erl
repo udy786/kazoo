@@ -51,7 +51,7 @@
 %%    <li><strong>`max_size'</strong>The max size of output in bytes to allow before the process is killed. The default is 1,000,000 bytes</li>
 %%    <li><strong>`read_mode'</strong>The default readmode is `{line, 1000}', but `stream' can be used when you want to run a command which does not emit newlines.</li>
 %%    <li></li>
-%% <ul>
+%% </ul>
 %%
 %% @end
 %%------------------------------------------------------------------------------
