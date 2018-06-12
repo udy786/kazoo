@@ -688,7 +688,7 @@ save_attachment(Context, Filename, FileJObj) ->
                                            ,kz_json:set_values([{<<"pvt_pages">>, props:get_value(<<"page_count">>, Props, 0)}
                                                                ,{<<"pvt_size">>, props:get_value(<<"size">>, Props, 0)}
                                                                ]
-                                                               ,JObj
+                                                              ,JObj
                                                               )
                                            ),
             set_pending(crossbar_doc:save_attachment(DocId

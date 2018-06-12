@@ -299,10 +299,10 @@ handle_cast('prepare_job', #state{job_id=JobId
                     {Resp, Doc} = release_failed_job('bad_file', <<"file is empty">>, JObj),
                     gen_server:cast(self(), 'stop'),
                     State#state{job = kz_json:set_values(Values, Doc)
-                              ,pages = Num
-                              ,resp=Resp
-                              ,status = <<"unknown">>
-                              };
+                               ,pages = Num
+                               ,resp=Resp
+                               ,status = <<"unknown">>
+                               };
                 _ ->
                     send_status(State, <<"preparing document to send">>, ?FAX_PREPARE, 'undefined'),
                     State#state{job=kz_json:set_values(Values, JObj)

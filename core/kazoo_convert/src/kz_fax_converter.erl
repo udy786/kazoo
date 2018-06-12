@@ -193,8 +193,8 @@ save_file(Content, #{<<"tmp_dir">> := TmpDir
     FilePath.
 
 -spec image_to_tiff({atom(), kz_term:ne_binary()}, map()) ->
-                            {'ok', kz_term:ne_binary()}|
-                            {'error', kz_term:ne_binary()}.
+                           {'ok', kz_term:ne_binary()}|
+                           {'error', kz_term:ne_binary()}.
 image_to_tiff(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
     ToPath = filename:join(TmpDir, [JobId, <<".tiff">>]),
     run_convert_command(?CONVERT_IMAGE_COMMAND, FromPath, ToPath, TmpDir).
