@@ -534,12 +534,12 @@ test_tiff_to_tiff_count_pages() ->
     From = read_test_file("valid.tiff"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
     [?_assertMatch({'ok', Expected, _}, kz_convert:fax(<<"image/tiff">>
-                                                   ,<<"image/tiff">>
-                                                   ,From
-                                                   ,[{<<"job_id">>, JobId}
-                                                    ,{<<"read_metadata">>, true}
-                                                    ]
-                                                   )
+                                                      ,<<"image/tiff">>
+                                                      ,From
+                                                      ,[{<<"job_id">>, JobId}
+                                                       ,{<<"read_metadata">>, true}
+                                                       ]
+                                                      )
                   )
     ].
 
@@ -549,12 +549,12 @@ test_pdf_to_tiff_count_pages() ->
     From = read_test_file("valid.pdf"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
     [?_assertMatch({'ok', Expected, _}, kz_convert:fax(<<"application/pdf">>
-                                                   ,<<"image/tiff">>
-                                                   ,From
-                                                   ,[{<<"job_id">>, JobId}
-                                                    ,{<<"read_metadata">>, true}
-                                                    ]
-                                                   )
+                                                      ,<<"image/tiff">>
+                                                      ,From
+                                                      ,[{<<"job_id">>, JobId}
+                                                       ,{<<"read_metadata">>, true}
+                                                       ]
+                                                      )
                   )
     ].
 test_openoffice_to_tiff_count_pages() ->
@@ -562,11 +562,11 @@ test_openoffice_to_tiff_count_pages() ->
     From = read_test_file("valid.docx"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
     [?_assertMatch({'ok', Expected, _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
-                                                   ,<<"image/tiff">>
-                                                   ,From
-                                                   ,[{<<"job_id">>, JobId}
-                                                    ,{<<"read_metadata">>, true}
-                                                    ]
-                                                   )
+                                                      ,<<"image/tiff">>
+                                                      ,From
+                                                      ,[{<<"job_id">>, JobId}
+                                                       ,{<<"read_metadata">>, true}
+                                                      ]
+                                                      )
                   )
     ].
