@@ -49,11 +49,6 @@
 
 -define(OPENXML_MIME_PREFIX, "application/vnd.openxmlformats-officedocument.").
 -define(OPENOFFICE_MIME_PREFIX, "application/vnd.oasis.opendocument.").
--define(OPENOFFICE_COMPATIBLE(CT)
-       ,(CT =:= <<"application/msword">>
-             orelse CT =:= <<"application/vnd.ms-excel">>
-             orelse CT =:= <<"application/vnd.ms-powerpoint">>
-        )).
 
 -define(DEFAULT_ALLOWED_CONTENT_TYPES, [<<"application/pdf">>
                                        ,<<"image/tiff">>
@@ -73,7 +68,6 @@
 -define(SMTP_CALLBACK_OPTIONS, {'callbackoptions', ['extensions', ?SMTP_EXTENSIONS]}).
 -define(SMTP_PORT, kapps_config:get_integer(?CONFIG_CAT, <<"smtp_port">>, 19025)).
 
--define(FAX_EXTENSION, <<"tiff">>).
 
 -define(FAX_OUTBOUND_SERVER(AccountId), <<"fax_outbound_", AccountId/binary>>).
 
