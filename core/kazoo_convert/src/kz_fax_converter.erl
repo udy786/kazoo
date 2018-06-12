@@ -332,7 +332,7 @@ read_metadata(Filename, MimeType) ->
     ,{<<"filetype">>, filename:extension(Filename)}
     ].
 
--spec count_pages(kz_term:ne_binary(), kz_term:ne_binary()) -> {integer(), non_neg_integer()}.
+-spec count_pages(kz_term:ne_binary(), kz_term:ne_binary()) -> integer().
 count_pages(?TIFF_MIME, Filename) ->
     case kz_os:cmd(?COUNT_PAGES_CMD, [{<<"FILE">>, Filename}], [{<<"read_mode">>, 'stream'}]) of
         {'ok', Result} -> kz_term:to_integer(Result);
