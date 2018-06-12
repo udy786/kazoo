@@ -1,6 +1,4 @@
-# Kazoo Convert *The Kazoo Core File Format Converter Library*
-
-## Overview
+# Kazoo File Format Converter Library
 
 The Kazoo convert provides a core library for converting file formats. This app moves functionality previously scattered throughout other applications into a single core application.
 
@@ -56,3 +54,10 @@ sup kazoo_convert_maintenance versions_in_use
 ```
 
 Used to audit the system and ensure all the converters required for the conversion operations are installed. If installed, this command attempts to display their versions.
+
+```
+sup kazoo_convert_maintenance read_metadata /path/to/a/file
+```
+
+Used to read the metadata of a file in the file system, if the file type is tiff, it will read the page count as well.
+

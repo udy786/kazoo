@@ -2,9 +2,6 @@
 
 This module provide a consistant core interface for fax file format conversions. The module is enabled as the default fax converter, but this can be easily extended by adding other modules to the converter.
 
-## Fax Converter Installation Considerations
-When using the default converter module several system dependencies were introduced. For default conversions from PDF to TIFF, The system packages `ghostscript` must be installed, for default conversion from tiff to pdf, `libtiff-tools` must be installed. If conversion to openxml formatted documents (docx, doc, xlsx, xls) is enabled, the dependency `libreoffice` must be installed. If a dependency is not installed, the converter command will simply fail on the system and the fax converter will return an error. If the converters commands are substituted this.
-
 ## Environment variables provided to all commands
 Three enviornment variables are provided to every command to ensure ordering of arguments can be provided in any order.
 
@@ -18,9 +15,8 @@ The `$TO` and `$FROM` environment variables are generally used in most commands,
 
 ## Fax Converter Commands
 
-All of the functionality for conversions was extracted from the `fax` and `teletype` apps, however the conversion commands executed did not survive the journey. Unlike the convert commands in the `fax` app, the `fax_converter` module the `exit status` and not the output is used to determine the success or failure of a command.
+All of the functionality for conversions was extracted from the `fax` and `teletype` apps, however the conversion commands executed did not survive the journey. Unlike the convert commands in the `fax` app, the `fax_converter` module the `exit status` is used to determine if a convert command was successful or failed. This means if you have customized your converter commands from the system defaults in `fax`, when you migrate to use the kz_convert, you should ensure the exit status returned is `0` when the convert command you use is successful.
 
-This means if you have customized your commands, you should ensure the exit status returned is correct for the result of the custom convert command.
 
 ```bash
 /usr/bin/gs -q \
@@ -172,4 +168,3 @@ gs -dNOPAUSE -dBATCH -sDEVICE=nullpage $FROM
 #### Requirements
 
 This command requires `ghostscript` be installed, this is installed via the package `ghostscript` in centos and debian.
-
