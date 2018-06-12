@@ -533,11 +533,11 @@ test_tiff_to_tiff_count_pages() ->
     JobId = kz_binary:rand_hex(16),
     From = read_test_file("valid.tiff"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
-    [?_assertMatch({'ok', Expected, {1, _}}, kz_convert:fax(<<"image/tiff">>
+    [?_assertMatch({'ok', Expected, _}, kz_convert:fax(<<"image/tiff">>
                                                    ,<<"image/tiff">>
                                                    ,From
                                                    ,[{<<"job_id">>, JobId}
-                                                    ,{<<"count_pages">>, true}
+                                                    ,{<<"read_metadata">>, true}
                                                     ]
                                                    )
                   )
@@ -548,11 +548,11 @@ test_pdf_to_tiff_count_pages() ->
     JobId = kz_binary:rand_hex(16),
     From = read_test_file("valid.pdf"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
-    [?_assertMatch({'ok', Expected, {2, _}}, kz_convert:fax(<<"application/pdf">>
+    [?_assertMatch({'ok', Expected, _}, kz_convert:fax(<<"application/pdf">>
                                                    ,<<"image/tiff">>
                                                    ,From
                                                    ,[{<<"job_id">>, JobId}
-                                                    ,{<<"count_pages">>, true}
+                                                    ,{<<"read_metadata">>, true}
                                                     ]
                                                    )
                   )
@@ -561,11 +561,11 @@ test_openoffice_to_tiff_count_pages() ->
     JobId = kz_binary:rand_hex(16),
     From = read_test_file("valid.docx"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
-    [?_assertMatch({'ok', Expected, {2, _}}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
+    [?_assertMatch({'ok', Expected, _}, kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
                                                    ,<<"image/tiff">>
                                                    ,From
                                                    ,[{<<"job_id">>, JobId}
-                                                    ,{<<"count_pages">>, true}
+                                                    ,{<<"read_metadata">>, true}
                                                     ]
                                                    )
                   )
