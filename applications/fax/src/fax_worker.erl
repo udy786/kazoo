@@ -808,7 +808,7 @@ elapsed_time(JObj) ->
     Now - Created.
 
 -spec fetch_document(kz_term:ne_binary(), kz_json:object()) ->
-                            {'ok', filename:file(), {integer(), non_neg_integer()}|
+                            {'ok', filename:file(), {integer(), non_neg_integer()}}|
                             {'error', any()}.
 fetch_document(JobId, JObj) ->
     case kz_doc:attachment_names(JObj) of
