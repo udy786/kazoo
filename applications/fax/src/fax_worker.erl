@@ -808,7 +808,8 @@ elapsed_time(JObj) ->
     Now - Created.
 
 -spec fetch_document(kz_term:ne_binary(), kz_json:object()) ->
-                            {'ok', filename:file()}|{'error', any()}.
+                            {'ok', filename:file(), {integer(), non_neg_integer()}|
+                            {'error', any()}.
 fetch_document(JobId, JObj) ->
     case kz_doc:attachment_names(JObj) of
         [] -> fetch_document_from_url(JobId, JObj);
@@ -885,8 +886,8 @@ convert_content(JobId, FromFormat, Content, TmpDir) ->
               ],
     case kz_convert:fax(FromFormat, <<"image/tiff">>, Content, Options) of
         {'ok', Content, Proplist} ->
-            {'ok', Content, {props:get_value(<<"page_count">>, Proplist)
-                            ,props:get_value(<<"size">>, Proplist)
+            {'ok', Content, {props:get_value(<<"page_count">>, Proplist, 0)
+                            ,props:get_value(<<"size">>, Proplist, 0)
                             }
             };
         Error -> Error
