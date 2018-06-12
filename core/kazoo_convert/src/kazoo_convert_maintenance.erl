@@ -5,10 +5,21 @@
 %%%-----------------------------------------------------------------------------
 -module(kazoo_convert_maintenance).
 
+-export([read_metadata/1]).
 -export([convert_fax_file/2, convert_fax_file/3]).
 -export([versions_in_use/0]).
 
--include("kz_convert.hrl").
+-include_lib("kazoo_convert/include/kz_convert.hrl").
+
+-spec read_metadata(any()) -> 'ok'.
+read_metadata(File) when is_binary(File) ->
+    print_metadata(kz_fax_converter:read_metadata(File));
+read_metadata(File) ->
+    read_metadata(kz_term:to_binary(File)).
+
+-spec print_metadata(kz_term:proplist()) -> 'ok'.
+print_metadata(Metadata) ->
+    _ = lists:foreach(fun({Key, Value}) -> io:format("~s ~p ~n", [Key, Value]) end, Metadata).
 
 -spec convert_fax_file(any(), any(), any()) ->
                               {'ok', any()} | {'error', any()}.
@@ -26,7 +37,7 @@ convert_fax_file(FromFile, ToFormat, WorkDir)
                       ,Content
                       ,Options
                       );
-        {'error', _} -> 'error'
+        {'error', _}=Error -> Error
     end;
 convert_fax_file(FromFile, ToFormat, WorkDir) ->
     convert_fax_file(kz_term:to_binary(FromFile)
@@ -62,8 +73,7 @@ format_to_mimetype(<<"TIFF">>) -> {'ok', ?TIFF_MIME};
 format_to_mimetype(<<"tiff">>) -> {'ok', ?TIFF_MIME};
 format_to_mimetype(<<"pdf">>) -> {'ok', ?PDF_MIME};
 format_to_mimetype(Format) ->
-    io:format("invalid format requested ~s", [Format]),
-    {'error', Format}.
+    {'ok', Format}.
 
 -spec versions_in_use() -> 'no_return'.
 versions_in_use() ->
