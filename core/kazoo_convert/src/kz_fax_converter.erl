@@ -251,7 +251,7 @@ maybe_rename_tmp_file(TmpPath, NewPath) ->
 rename_tmp_file(FromPath, ToPath) ->
     case filelib:is_file(FromPath) of
         'true' ->
-            case file:rename_file(FromPath, ToPath) of
+            case file:rename(FromPath, ToPath) of
                 {'ok', _} -> {'ok', ToPath};
                 {'error', _} -> {'error', <<"failed to rename tmp doc to ", ToPath/binary>>}
             end;
