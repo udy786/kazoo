@@ -836,7 +836,9 @@ fetch_document_from_attachment(JobId, JObj, [AttachmentName|_]) ->
 
 
 -spec fetch_document_from_url(kz_term:ne_binary(), kz_json:object()) ->
-                                     {'ok', filename:file()}|{'error', any()}|{'error', atom(), any()}.
+                                     {'ok', filename:file(),{integer(), non_neg_integer()}}|
+                                     {'error', any()}|
+                                     {'error', atom(), any()}.
 fetch_document_from_url(JobId, JObj) ->
     FetchRequest = kz_json:get_value(<<"document">>, JObj),
     Url = kz_json:get_string_value(<<"url">>, FetchRequest),
