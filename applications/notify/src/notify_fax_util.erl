@@ -53,6 +53,8 @@ get_attachment(UseDb, Category, Props) ->
         <<"pdf">> ->
             case kz_convert:fax(ContentType, <<"application/pdf">>, AttachmentBin, [{<<"output_type">>, 'binary'}]) of
                 {'ok', Content} -> {ContentType, get_file_name(Props, "pdf"), Content};
+                {'error', _ } -> 'error'
+            end;
         _Else -> {ContentType, get_file_name(Props, "pdf"), AttachmentBin}
     end.
 
