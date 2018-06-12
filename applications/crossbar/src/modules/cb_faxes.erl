@@ -676,17 +676,17 @@ save_attachment(Context, Filename, FileJObj) ->
     FromFormat = kz_json:get_value([<<"headers">>, <<"content_type">>], FileJObj),
     Options = [{<<"output_type">>, 'binary'}
               ,{<<"job_id">>, DocId}
-              ,{<<"count_pages">>, 'true'}
+              ,{<<"read_metadata">>, 'true'}
               ],
     case kz_convert:fax(FromFormat, <<"image/tiff">>, Contents, Options) of
-        {'ok', Output, {NumberOfPages, FileSize}} ->
+        {'ok', Output, Props} ->
             Opts = [{'content_type', <<"image/tiff">>}
                    ,{'rev', kz_doc:revision(JObj)}
                     | ?TYPE_CHECK_OPTION(<<"fax">>)
                    ],
             NewContext = cb_context:set_doc(Context
-                                           ,kz_json:set_values([{<<"pvt_pages">>, NumberOfPages}
-                                                               ,{<<"pvt_size">>, FileSize}
+                                           ,kz_json:set_values([{<<"pvt_pages">>, props:get_value(<<"page_count">>, Props, 0)}
+                                                               ,{<<"pvt_size">>, props:get_value(<<"size">>, Props, 0)}
                                                                ]
                                                                ,JObj
                                                               )

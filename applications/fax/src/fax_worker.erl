@@ -816,13 +816,23 @@ fetch_document(JobId, JObj) ->
     end.
 
 -spec fetch_document_from_attachment(kz_term:ne_binary(), kz_json:object(), kz_term:ne_binaries()) ->
-                                            {'ok', filename:file()}|{'error', any()}.
+                                            {'ok', filename:file()}|
+                                            {'ok', filename:file(), {}}|
+                                            {'error', any()}.
 fetch_document_from_attachment(JobId, JObj, [AttachmentName|_]) ->
     DefaultContentType = kz_mime:from_extension(filename:extension(AttachmentName)),
     ContentType = kz_doc:attachment_content_type(JObj, AttachmentName, DefaultContentType),
     {'ok', Content} = kz_datamgr:fetch_attachment(?KZ_FAXES_DB, kz_doc:id(JObj), AttachmentName),
     TmpDir = kapps_config:get_binary(?CONFIG_CAT, <<"file_cache_path">>, <<"/tmp/">>),
-    maybe_convert_content(JobId, ContentType, Content, TmpDir).
+    case maybe_convert_content(JobId, ContentType, Content, TmpDir) of
+        {'ok', _FilePath, {_PageCount, _Size}}=Ok -> Ok;
+        {'ok', FilePath} ->
+            PageCount = kz_json:get_value(<<"pvt_pages">>, JObj, 0),
+            Size = kz_json:get_value(<<"pvt_size">>, JObj, 0),
+            {'ok', FilePath, {PageCount, Size}};
+        Error -> Error
+    end.
+
 
 -spec fetch_document_from_url(kz_term:ne_binary(), kz_json:object()) ->
                                      {'ok', filename:file()}|{'error', any()}|{'error', atom(), any()}.
@@ -853,7 +863,9 @@ fetch_document_from_url(JobId, JObj) ->
     end.
 
 -spec maybe_convert_content(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
-                                   {'ok', filename:file()}|{'error', any()}.
+                                   {'ok', filename:file()}|
+                                   {'ok', filename:file(),{integer(), non_neg_integer()}}|
+                                   {'error', any()}.
 maybe_convert_content(JobId, <<"image/tiff">>, Content, TmpDir) ->
     Filename = filename:join(TmpDir, [JobId, <<".tiff">>]),
     kz_util:write_file(Filename, Content),
@@ -863,14 +875,22 @@ maybe_convert_content(JobId, FromFormat, Content, TmpDir) ->
     convert_content(JobId, FromFormat, Content, TmpDir).
 
 -spec convert_content(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
-                             {'ok', filename:file()}|{'error', any()}.
+                             {'ok', filename:file(),{integer(), non_neg_integer()}}|
+                             {'error', any()}.
 convert_content(JobId, FromFormat, Content, TmpDir) ->
     Options = [{<<"output_type">>, 'path'}
               ,{<<"job_id">>, JobId}
               ,{<<"tmp_dir">>, TmpDir}
-              ,{<<"count_pages">>, 'true'}
+              ,{<<"read_metadata">>, 'true'}
               ],
-    kz_convert:fax(FromFormat, <<"image/tiff">>, Content, Options).
+    case kz_convert:fax(FromFormat, <<"image/tiff">>, Content, Options) of
+        {'ok', Content, Proplist} ->
+            {'ok', Content, {props:get_value(<<"page_count">>, Proplist)
+                            ,props:get_value(<<"size">>, Proplist)
+                            }
+            };
+        Error -> Error
+    end.
 
 -spec send_fax(kz_term:ne_binary(), kz_json:object(), kz_term:ne_binary()) -> 'ok'.
 send_fax(JobId, JObj, Q) ->

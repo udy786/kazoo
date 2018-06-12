@@ -260,12 +260,12 @@ handle_message(#state{filename=Filename
     FromFormat = kz_mime:from_filename(Filename),
     Options = [{<<"output_type">>, 'binary'}
               ,{<<"job_id">>, kz_doc:id(Doc)}
-              ,{<<"count_pages">>, 'true'}
+              ,{<<"read_metadata">>, 'true'}
               ],
     case kz_convert:fax(FromFormat, <<"image/tiff">>, {'file', Filename}, Options) of
-        {'ok', FileContents, {NumberOfPages, FileSize}} ->
-            NewDoc = kz_json:set_values([{<<"pvt_pages">>, NumberOfPages}
-                                        ,{<<"pvt_size">>, FileSize}
+        {'ok', FileContents, Props} ->
+            NewDoc = kz_json:set_values([{<<"pvt_pages">>, props:get_value(<<"page_count">>, Props, 0)}
+                                        ,{<<"pvt_size">>, props:get_value(<<"size">>, Props, 0)}
                                         ]
                                        ,Doc
                                        ),
