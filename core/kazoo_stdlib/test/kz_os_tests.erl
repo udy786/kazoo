@@ -41,7 +41,7 @@ cmd_absolute_timeout_test_() ->
                   )
     ].
 cmd_absolute_timeout_evil_cmd_test_() ->
-    [?_assertMatch({'error', 'absolute_timeout', _ }, kz_os:cmd(<<"yes 'stop hitting yourself'">>
+    [?_assertMatch({'error', 'absolute_timeout', <<>> }, kz_os:cmd(<<"yes 'stop hitting yourself'">>
                                                                ,[]
                                                                ,[{<<"max_size">>, 10000000}
                                                                 ,{<<"timeout">>, 1000}
