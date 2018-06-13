@@ -24,14 +24,14 @@
           "-dNOPAUSE "
           "-dBATCH "
           "-dSAFER "
-          "-sDEVICE=tiffg4 "
+          "-sDEVICE=tiffg3 "
           "-sOutputFile=$TO -- $FROM"
         >>
        ).
 -define(CONVERT_IMAGE_CMD, <<"convert $FROM "
                              "-resample 204x98 "
                              "-units PixelsPerInch "
-                             "-compress group4 "
+                             "-compress fax "
                              "-size 1728x1078 $TO"
                            >>
        ).
@@ -46,9 +46,10 @@
                                 >>
        ).
 
--define(COUNT_PAGES_CMD, <<"echo -n `tiffinfo $FILE | grep 'Page Number' | grep -c 'P'`">>).
+-define(COUNT_TIFF_PAGES_CMD, <<"echo -n `tiffinfo $FILE | grep 'Page Number' | grep -c 'P'`">>).
 
--define(VALIDATE_PDF_CMD, <<"gs -dNOPAUSE -dBATCH -sDEVICE=nullpage $FROM">>).
+-define(VALIDATE_PDF_CMD, <<"gs -dNOPAUSE -dBATCH -sDEVICE=nullpage $FILE">>).
+-define(VALIDATE_TIFF_CMD, <<"tiffinfo $FILE">>).
 
 -define(CONVERT_IMAGE_COMMAND
        ,kapps_config:get_binary(?CONFIG_CAT, <<"convert_image_command">>, ?CONVERT_IMAGE_CMD)).
@@ -71,6 +72,9 @@
 
 -define(ENABLE_OPENOFFICE
        ,kapps_config:get_is_true(?CONFIG_CAT, <<"enable_openoffice">>, true)).
+
+-define(CONVERT_TIMEOUT
+       ,kapps_config:get_integer(?CONFIG_CAT,<<"convert_command_timeout">> ,120 * ?MILLISECONDS_IN_SECOND)).
 
 -define(KZ_CONVERT_HRL, 'true').
 -endif.

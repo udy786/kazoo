@@ -35,13 +35,13 @@
 %% the contents of the file or `path' to receive a path to the converted file in the response.
 %% The default is `path'.</li>
 %% <li><strong>tmp_dir:</strong> the working directory where the conversion will take place.</li>
-%% <li><strong>count_pages:</strong> if the output format is tiff, count the pages of the tiff.</li>
 %% <li><strong>return_metadata:</strong> if the output format is tiff, count the pages of the tiff.</li>
+%% <li><strong>to_filename:</strong>The user requested destination file name for the converted file</li>
 %% </ul>
 %%
 %% Cache file handling:
 %% The converter (and any alternative modules) should always delete any files created in the process,
-%% including the input file if the {'file', Filepath} `Content' format is specified.
+%% including the input file if the {'file', FilePath} `Content' format is specified.
 %% If `output_type' is `path' the file converted file will be returned and deletion of this file will be
 %% the responsiblity of the caller.
 %%
@@ -57,12 +57,13 @@
 %% Replacement modules intended to replace this converter should respect the interface defined in this module:
 %%
 %% 1. The converter (and any alternative modules) should always delete any files created in the process,
-%% including the input file if the {'file', Filepath} `Content' format is specified.
+%% including the input file if the {'file', FilePath} `Content' format is specified.
 %% 2. `binary' and `filepath' formats in the requested `output_type' must be supported.
-%% 3. Input content formats `{file, Filepath}' and a binary containging the files content must be supported.
+%% 3. Input content formats `{file, FilePath}' and a binary containging the files content must be supported.
 %% 4. The function read_metadata/1 must be implemented, and return the existing format.
 %% 5. The interface of the function convert/4 must be implemented
 %% 6. Any files created in the process should be stored in the specified tmp_dir or `/tmp' by default.
+%% 7. The user specified filename is respected
 %%
 %% @end
 %%------------------------------------------------------------------------------
@@ -71,7 +72,7 @@
              ,binary()|{'file', kz_term:ne_binary()}
              ,kz_term:proplist()) ->
                      {'ok', any()}|
-                     {'ok', any(), {integer(), non_neg_integer()}}|
+                     {'ok', any(), kz_term:proplist()}|
                      {'error', any()}.
 convert(From, To, Content, Opts) ->
     Options = maps:from_list(
@@ -93,6 +94,14 @@ convert(From, To, Content, Opts) ->
             lager:error("conversion failed with error: ~p", [Message]),
             Error
     end.
+
+-spec read_metadata(kz_term:ne_binary()) -> kz_term:proplist().
+read_metadata(Filename) ->
+    read_metadata(Filename, kz_mime:from_filename(Filename)).
+
+%%
+%% Internal functions
+%%
 
 -spec eval_format(kz_term:ne_binary(), kz_term:ne_binary()) -> kz_term:list().
 eval_format(<<"image/", _SubType/binary>>, ?TIFF_MIME) ->
@@ -146,72 +155,28 @@ run_convert([Operation|Operations], ToFormat, FilePath, Options) ->
 run_convert([], ToFormat, FilePath, Options) ->
     case validate_output(ToFormat, FilePath, Options) of
         {'ok', _} ->
-            maybe_add_metadata(ToFormat, FilePath, Options);
+            format_response(ToFormat, FilePath, Options);
         Error -> Error
     end.
 
-maybe_add_metadata(Mimetype, FilePath, #{<<"read_metadata">> := 'true'}=Options) ->
-    Metadata = read_metadata(Mimetype, FilePath),
-    case format_output(FilePath, Options) of
-        {'ok', Content} -> {'ok', Content, Metadata};
-        Error -> Error
-    end;
-maybe_add_metadata(_Mimetype, FilePath, Options) ->
-    format_output(FilePath, Options).
-
--spec format_output(kz_term:ne_binary(), map()) ->
-                           {'ok', any()}|
-                           {'error', any()}.
-format_output(FilePath, #{<<"output_type">> := 'binary'}) ->
-    case file:read_file(FilePath) of
-        {'ok', _}=Ok ->
-            kz_util:delete_file(FilePath),
-            Ok;
-        Error -> Error
-    end;
-format_output(FilePath, #{<<"output_type">> := 'path'}) ->
-    {'ok', FilePath};
-format_output(FilePath, _Options) ->
-    {'ok', FilePath}.
-
--spec maybe_delete_previous_file(kz_term:ne_binary(), kz_term:ne_binary()) -> 'ok'.
-maybe_delete_previous_file(Filename, Filename) ->
-    'ok';
-maybe_delete_previous_file(OldFilename, _NewFilename) ->
-    kz_util:delete_file(OldFilename).
-
--spec save_file({'file', kz_term:ne_binary()}|kz_term:ne_binary(), map()) -> kz_term:ne_binary().
-save_file({'file', FilePath}, _Options) ->
-    FilePath;
-save_file(Content, #{<<"tmp_dir">> := TmpDir
-                    ,<<"job_id">> := JobId
-                    ,<<"from_format">> := FromFormat
-                    }) ->
-    Ext = kz_mime:to_extension(FromFormat),
-    FilePath = filename:join(TmpDir, [JobId, <<".">>, Ext]),
-    kz_util:write_file(FilePath, Content),
-    FilePath.
 
 -spec image_to_tiff({atom(), kz_term:ne_binary()}, map()) ->
                            {'ok', kz_term:ne_binary()}|
                            {'error', kz_term:ne_binary()}.
-image_to_tiff(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
-    ToPath = filename:join(TmpDir, [JobId, <<".tiff">>]),
-    run_convert_command(?CONVERT_IMAGE_COMMAND, FromPath, ToPath, TmpDir).
+image_to_tiff(FromPath, Options) ->
+    convert_file(?CONVERT_IMAGE_COMMAND, FromPath, <<".tiff">>, Options).
 
 -spec tiff_to_pdf(kz_term:ne_binary(), map()) ->
                          {'ok', kz_term:ne_binary()}|
                          {'error', kz_term:ne_binary()}.
-tiff_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
-    ToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
-    run_convert_command(?CONVERT_TIFF_COMMAND, FromPath, ToPath, TmpDir).
+tiff_to_pdf(FromPath, Options) ->
+    convert_file(?CONVERT_TIFF_COMMAND, FromPath, <<".pdf">>, Options).
 
 -spec pdf_to_tiff(kz_term:ne_binary(), map()) ->
                          {'ok', kz_term:ne_binary()}|
                          {'error', kz_term:ne_binary()}.
-pdf_to_tiff(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
-    ToPath = filename:join(TmpDir, [JobId, <<".tiff">>]),
-    run_convert_command(?CONVERT_PDF_COMMAND, FromPath, ToPath, TmpDir).
+pdf_to_tiff(FromPath, Options) ->
+    convert_file(?CONVERT_PDF_COMMAND, FromPath, <<".tiff">>, Options).
 
 -spec openoffice_to_pdf(kz_term:ne_binary(), map()) ->
                                {'ok', kz_term:ne_binary()}|
@@ -228,27 +193,95 @@ openoffice_to_pdf(FromPath, Options) ->
     end.
 
 -spec do_openoffice_to_pdf(kz_term:ne_binary(), map()) -> {atom(), kz_term:ne_binary()}.
-do_openoffice_to_pdf(FromPath, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
-    FinalToPath = filename:join(TmpDir, [JobId, <<".pdf">>]),
-    TmpPath = filename:join(TmpDir, [filename:rootname(filename:basename(FromPath)), <<".pdf">>]),
-    case run_convert_command(?CONVERT_OPENOFFICE_COMMAND, FromPath, FinalToPath, TmpDir) of
-        {'ok', _} -> maybe_rename_tmp_file(TmpPath, FinalToPath);
+do_openoffice_to_pdf(FromPath, Options) ->
+    convert_file(?CONVERT_OPENOFFICE_COMMAND, FromPath, <<".pdf">>, Options).
+
+convert_file(Command, FromPath, Ext, #{<<"job_id">> := JobId, <<"tmp_dir">> := TmpDir}) ->
+    ToPath = filename:join(TmpDir, [JobId, Ext]),
+    BatchPath = filename:join(TmpDir, [filename:rootname(filename:basename(FromPath)), Ext]),
+    case run_convert_command(Command, FromPath, ToPath, TmpDir) of
+        {'ok', _} -> maybe_rename_file(BatchPath, ToPath);
         Else -> Else
     end.
 
--spec maybe_rename_tmp_file(kz_term:ne_binary(), kz_term:ne_binary()) ->
-                                   {'ok', kz_term:ne_binary()}|
-                                   {'error', kz_term:ne_binary()}.
-maybe_rename_tmp_file(TmpPath, NewPath) ->
-    case filelib:is_file(NewPath) of
-        'true' -> {'ok', NewPath};
-        'false' -> rename_tmp_file(TmpPath, NewPath)
-    end.
 
--spec rename_tmp_file(kz_term:ne_binary(), kz_term:ne_binary()) ->
+-spec validate_output(kz_term:ne_binary(), kz_term:ne_binary(), map()) ->
                              {'ok', kz_term:ne_binary()}|
                              {'error', kz_term:ne_binary()}.
-rename_tmp_file(FromPath, ToPath) ->
+validate_output(?TIFF_MIME, Filename, #{<<"tmp_dir">> := TmpDir}) ->
+    OutputFile = filename:join(TmpDir, <<(kz_binary:rand_hex(16))/binary, ".pdf">>),
+    run_validate_command(?VALIDATE_TIFF_COMMAND, Filename, OutputFile, TmpDir);
+validate_output(?PDF_MIME, Filename, #{<<"tmp_dir">> := TmpDir}) ->
+    OutputFile = filename:join(TmpDir, <<(kz_binary:rand_hex(16))/binary, ".pdf">>),
+    run_validate_command(?VALIDATE_PDF_COMMAND, Filename, OutputFile, TmpDir);
+validate_output(Mime, _FilePath, _Options) ->
+    {'ok', <<"unsupported mime type", Mime/binary>>}.
+
+-spec run_validate_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
+                                  {'ok', kz_term:ne_binary()}|
+                                  {'error', any()}.
+run_validate_command(Command, FromPath, ToPath, TmpDir) ->
+    lager:debug("validating file with command: ~s", [Command]),
+    Args = [{<<"FROM">>, FromPath}
+           ,{<<"TO">>, ToPath}
+           ,{<<"WORKDIR">>, TmpDir}
+           ,{<<"FILE">>, FromPath}
+           ],
+    Options = [{<<"timeout">>, ?CONVERT_TIMEOUT}
+              ,{<<"absolute_timeout">>, ?CONVERT_TIMEOUT}
+              ],
+    case kz_os:cmd(Command, Args, Options) of
+        {'ok', _}=Ok ->
+            kz_util:delete_file(ToPath),
+            Ok;
+        {'error', Reason, Msg} ->
+            lager:debug("failed to validate file: ~s with reason: ~s error: ~p", [FromPath, Reason, Msg]),
+            _ = file:delete(ToPath),
+            kz_util:delete_file(FromPath),
+            {'error', <<"file validation failed">>}
+    end.
+
+-spec run_convert_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
+                                 {'ok', kz_term:ne_binary()}|
+                                 {'error', any()}.
+run_convert_command(Command, FromPath, ToPath, TmpDir) ->
+    lager:debug("converting file with command: ~s", [Command]),
+    Args = [{<<"FROM">>, FromPath}
+           ,{<<"TO">>, ToPath}
+           ,{<<"WORKDIR">>, TmpDir}
+           ],
+    Options = [{<<"timeout">>, ?CONVERT_TIMEOUT}
+              ,{<<"absolute_timeout">>, ?CONVERT_TIMEOUT}
+              ],
+    case kz_os:cmd(Command, Args, Options) of
+        {'ok', _} ->
+            lager:debug("successfully converted file ~s", [FromPath]),
+            {'ok', ToPath};
+        {'error', Reason, Msg} ->
+            lager:debug("failed to convert file with reason: ~p, output: ~p", [Reason, Msg]),
+            _ = file:delete(ToPath),
+            {'error', <<"convert command failed">>}
+    end.
+
+-spec maybe_delete_previous_file(kz_term:ne_binary(), kz_term:ne_binary()) -> 'ok'.
+maybe_delete_previous_file(Filename, Filename) ->
+    'ok';
+maybe_delete_previous_file(OldFilename, _NewFilename) ->
+    kz_util:delete_file(OldFilename).
+-spec maybe_rename_file(kz_term:ne_binary(), kz_term:ne_binary()) ->
+                                   {'ok', kz_term:ne_binary()}|
+                                   {'error', kz_term:ne_binary()}.
+maybe_rename_file(TmpPath, NewPath) ->
+    case filelib:is_file(NewPath) of
+        'true' -> {'ok', NewPath};
+        'false' -> rename_file(TmpPath, NewPath)
+    end.
+
+-spec rename_file(kz_term:ne_binary(), kz_term:ne_binary()) ->
+                             {'ok', kz_term:ne_binary()}|
+                             {'error', kz_term:ne_binary()}.
+rename_file(FromPath, ToPath) ->
+    lager:info("renaming file from ~s to ~s", [FromPath, ToPath]),
     case filelib:is_file(FromPath) of
         'true' ->
             case file:rename(FromPath, ToPath) of
@@ -258,85 +291,97 @@ rename_tmp_file(FromPath, ToPath) ->
         'false' -> {'error', <<"no output file from conversion">>}
     end.
 
--spec validate_output(kz_term:ne_binary(), kz_term:ne_binary(), map()) ->
-                             {'ok', kz_term:ne_binary()}|
-                             {'error', kz_term:ne_binary()}.
-validate_output(?TIFF_MIME, Filename, #{<<"tmp_dir">> := TmpDir}) ->
-    OutputFile = filename:join(TmpDir, <<(kz_binary:rand_hex(16))/binary, ".pdf">>),
-    case run_validate_command(?VALIDATE_TIFF_COMMAND, Filename, OutputFile, TmpDir) of
-        {'ok', _}=Ok ->
-            kz_util:delete_file(OutputFile),
-            Ok;
-        Error ->
-            _ = file:delete(OutputFile),
-            kz_util:delete_file(Filename),
-            Error
-    end;
-validate_output(?PDF_MIME, Filename, #{<<"tmp_dir">> := TmpDir}) ->
-    case run_validate_command(?VALIDATE_PDF_COMMAND, Filename, <<"">>, TmpDir) of
-        {'ok', _}=Ok ->
-            Ok;
-        Error ->
-            _ = file:delete(Filename),
-            Error
-    end;
-validate_output(Mime, _FilePath, _Options) ->
-    {'ok', <<"unsupported mime type", Mime/binary>>}.
 
--spec run_validate_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
-                                  {'error', any()}|
-                                  {'ok', kz_term:ne_binary()}.
-run_validate_command(Command, FromPath, ToPath, TmpDir) ->
-    lager:debug("validating file with command: ~s", [Command]),
-    run_command(Command, FromPath, ToPath, TmpDir).
-
--spec run_convert_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
-                                 {'error', any()}|
-                                 {'ok', kz_term:ne_binary()}.
-run_convert_command(Command, FromPath, ToPath, TmpDir) ->
-    lager:debug("converting file with command: ~s", [Command]),
-    case run_command(Command, FromPath, ToPath, TmpDir) of
-        {'ok', _} ->
-            lager:debug("successfully converted file ~s", [FromPath]),
-            {'ok', ToPath};
-        {'error', Reason, Msg} ->
-            lager:debug("failed to convert file with reason: ~p, output: ~p", [Reason, Msg]),
-            _ = file:delete(ToPath),
-            {'error', <<"command failed">>}
+-spec format_response(kz_term:ne_binary(), kz_term:ne_binary(), map()) ->
+                             {'ok', any()}|
+                             {'ok', any(), kz_term:proplist()}|
+                             {'error', any()}.
+format_response(ToFormat, FilePath, Options) ->
+    case maybe_user_filename(FilePath, Options) of
+        {'ok', NewPath} ->
+            Metadata = maybe_read_metadata(ToFormat, NewPath, Options),
+            case format_output(NewPath, Options) of
+                {'ok', Content} when Metadata =/= [] ->
+                    {'ok', Content, Metadata};
+                {'ok', _}=Ok -> Ok;
+                Error -> Error
+            end;
+        Error -> Error
     end.
 
--spec run_command(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) ->
-                         {'error', any(), kz_term:ne_binary()}|
-                         {'ok', kz_term:ne_binary()}.
-run_command(Command, FromPath, ToPath, TmpDir) ->
-    Timeout =
-        kapps_config:get_integer(?CONFIG_CAT,<<"convert_command_timeout">> ,120 * ?MILLISECONDS_IN_SECOND),
-    Args = [{<<"FROM">>, FromPath}
-           ,{<<"TO">>, ToPath}
-           ,{<<"WORKDIR">>, TmpDir}
-           ],
-    Options = [{<<"timeout">>, Timeout}
-              ,{<<"absolute_timeout">>, Timeout}
-              ],
-    kz_os:cmd(Command, Args, Options).
+-spec maybe_read_metadata(kz_term:ne_binary(), kz_term:ne_binary(), map()) -> kz_term:proplist().
+maybe_read_metadata(MimeType, FilePath, #{<<"read_metadata">> := 'true'}) ->
+    read_metadata(FilePath, MimeType);
+maybe_read_metadata(_, _, _) ->
+    [].
 
--spec read_metadata(kz_term:ne_binary()) -> kz_term:proplist().
-read_metadata(Filename) ->
-    read_metadata(Filename, kz_mime:from_filename(Filename)).
+-spec maybe_user_filename(kz_term:ne_binary(), map()) ->
+                                 {'ok', file:filename()}|
+                                 {'error', kz_term:ne_binary()}.
+maybe_user_filename(FilePath, #{<<"to_filename">> := UserPath, <<"tmp_dir">> := TmpDir}) ->
+    case filename:pathtype(UserPath) of
+        'absolute' ->
+            rename_file(FilePath, UserPath);
+        'relative' ->
+            rename_file(FilePath, filename:join(TmpDir, UserPath));
+        _ -> {'error', <<"invalid filename ", UserPath/binary>>}
+    end;
+maybe_user_filename(FilePath, _Options) ->
+    {'ok', FilePath}.
+
+-spec format_output(kz_term:ne_binary(), map()) ->
+                           {'ok', any()}|
+                           {'error', any()}.
+format_output(FilePath, #{<<"output_type">> := 'binary'}) ->
+    case file:read_file(FilePath) of
+        {'ok', _}=Ok ->
+            kz_util:delete_file(FilePath),
+            Ok;
+        {'error', Reason} ->
+            lager:debug("failed to format output file with reason ~p", [Reason]),
+            {'error', <<"failed to format output file">>}
+    end;
+format_output(FilePath, #{<<"output_type">> := 'path'}) ->
+    {'ok', FilePath};
+format_output(FilePath, _Options) ->
+    {'ok', FilePath}.
+
+-spec save_file({'file', kz_term:ne_binary()}|kz_term:ne_binary(), map()) -> kz_term:ne_binary().
+save_file({'file', FilePath}, _Options) ->
+    FilePath;
+save_file(Content, #{<<"tmp_dir">> := TmpDir
+                    ,<<"job_id">> := JobId
+                    ,<<"from_format">> := FromFormat
+                    }) ->
+    Ext = kz_mime:to_extension(FromFormat),
+    FilePath = filename:join(TmpDir, [JobId, <<".">>, Ext]),
+    kz_util:write_file(FilePath, Content),
+    FilePath.
 
 -spec read_metadata(kz_term:ne_binary(), kz_term:ne_binary()) -> kz_term:proplist().
 read_metadata(Filename, MimeType) ->
-    [{<<"page_count">>, count_pages(MimeType, Filename)}
+    [{<<"page_count">>, count_pages_command(MimeType, Filename)}
     ,{<<"size">>, filelib:file_size(kz_term:to_list(Filename))}
     ,{<<"mimetype">>, MimeType}
-    ,{<<"filetype">>, filename:extension(Filename)}
+    ,{<<"filetype">>, filetype_from_filename(Filename)}
     ].
 
--spec count_pages(kz_term:ne_binary(), kz_term:ne_binary()) -> integer().
-count_pages(?TIFF_MIME, Filename) ->
-    case kz_os:cmd(?COUNT_PAGES_CMD, [{<<"FILE">>, Filename}], [{<<"read_mode">>, 'stream'}]) of
-        {'ok', Result} -> kz_term:to_integer(Result);
+-spec count_pages_command(kz_term:ne_binary(), kz_term:ne_binary()) -> integer().
+count_pages_command(?TIFF_MIME, Filename) ->
+    Options = [{<<"timeout">>, ?CONVERT_TIMEOUT}
+              ,{<<"absolute_timeout">>, ?CONVERT_TIMEOUT}
+              ,{<<"read_mode">>, 'stream'}
+              ],
+    case kz_os:cmd(?COUNT_TIFF_PAGES_CMD, [{<<"FILE">>, Filename}], Options) of
+        {'ok', Result} ->
+            kz_term:to_integer(Result);
         _ -> 0
     end;
-count_pages(_Mimetype, _Filename) -> 0.
+count_pages_command(_MimeType, _Filename) -> 0.
 
+-spec filetype_from_filename(kz_term:ne_binary()) -> kz_term:ne_binary().
+filetype_from_filename(Filename) ->
+    filetype_from_extension(filename:extension(Filename)).
+
+-spec filetype_from_extension(kz_term:ne_binary()) -> kz_term:ne_binary().
+filetype_from_extension(<<$., Ext/binary>>) -> Ext.

@@ -82,7 +82,6 @@ cmd(Command, Args, Options) ->
                          {'ok', kz_term:ne_binary()}|
                          {'error', any(), binary()}.
 monitor_cmd(Pid, Ref, Timeout, Port) ->
-    lager:info("~p", Ref),
     receive
         {'port', NewPort, Pid} ->
             monitor_cmd(Pid, Ref, Timeout, NewPort);
