@@ -310,9 +310,6 @@ handle_cast('prepare_job', #state{job_id=JobId
                                ,pages=PageCount
                                }
             end;
-        {'ok', Filepath} ->
-            send_status(State, <<"preparing document to send">>, ?FAX_PREPARE, 'undefined'),
-            {'noreply', State#state{file=Filepath}};
         {'error', 'fetch_failed', Status} ->
             _ = send_error_status(State, Status),
             {Resp, Doc} = release_failed_job('fetch_failed', Status, JObj),
@@ -809,6 +806,7 @@ elapsed_time(JObj) ->
 
 -spec fetch_document(kz_term:ne_binary(), kz_json:object()) ->
                             {'ok', filename:file(), {integer(), non_neg_integer()}}|
+                            {'error', atom(), any()}|
                             {'error', any()}.
 fetch_document(JobId, JObj) ->
     case kz_doc:attachment_names(JObj) of
@@ -819,6 +817,7 @@ fetch_document(JobId, JObj) ->
 -spec fetch_document_from_attachment(kz_term:ne_binary(), kz_json:object(), kz_term:ne_binaries()) ->
                                             {'ok', filename:file()}|
                                             {'ok', filename:file(), {}}|
+                                            {'error', atom(), any()}|
                                             {'error', any()}.
 fetch_document_from_attachment(JobId, JObj, [AttachmentName|_]) ->
     DefaultContentType = kz_mime:from_extension(filename:extension(AttachmentName)),

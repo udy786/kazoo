@@ -78,7 +78,7 @@ cmd(Command, Args, Options) ->
     {Pid, Ref} = erlang:spawn_monitor(?MODULE, 'run_cmd', CmdOptions),
     monitor_cmd(Pid, Ref, CmdTimeout, 'undefined').
 
--spec monitor_cmd(pid(), reference(), reference(), kz_term:api_port()) ->
+-spec monitor_cmd(pid(), reference(), non_neg_integer(), kz_term:api_port()) ->
                          {'ok', kz_term:ne_binary()}|
                          {'error', any(), binary()}.
 monitor_cmd(Pid, Ref, Timeout, Port) ->
@@ -102,7 +102,7 @@ monitor_cmd(Pid, Ref, Timeout, Port) ->
     end.
 
 -spec run_cmd(kz_term:ne_binary(), kz_term:proplist(), kz_term:proplist()) ->
-                     'no_return'.
+                     any().
 run_cmd(Command, Args, Options) ->
     OwnerPid = props:get_value(<<"owner">>, Options),
     OwnerRef = erlang:monitor('process', OwnerPid),

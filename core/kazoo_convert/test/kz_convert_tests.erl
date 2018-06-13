@@ -66,6 +66,9 @@ fax_test_() ->
 setup() ->
     LinkPid = kzd_test_fixtures:setup(),
     {'ok', SupPid} = kz_openoffice_server_sup:start_link(),
+    lager:set_loglevel(lager_console_backend, none),
+    lager:set_loglevel(lager_file_backend, none),
+    lager:set_loglevel(lager_syslog_backend, none),
     {LinkPid, SupPid}.
 
 cleanup({LinkPid, SupPid}) ->
@@ -478,7 +481,7 @@ test_pdf_to_tiff_nonexistent_file() ->
 
 test_openoffice_to_pdf_nonexistent_file() ->
     JobId = kz_binary:rand_hex(16),
-    [?_assertMatch({'error', <<"no output file from conversion">>}
+    [?_assertMatch({'error', <<"cannot rename from file: ", _/binary >>}
                   ,kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
                                  ,<<"application/pdf">>
                                  ,{'file', <<"/tmp/no_a_file.docx">>}
@@ -489,7 +492,7 @@ test_openoffice_to_pdf_nonexistent_file() ->
 
 test_openoffice_to_tiff_nonexistent_file() ->
     JobId = kz_binary:rand_hex(16),
-    [?_assertMatch({'error', <<"no output file from conversion">>}
+    [?_assertMatch({'error', <<"cannot rename from file: ", _/binary >>}
                   ,kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
                                  ,<<"image/tiff">>
                                  ,{'file', <<"/tmp/not_a_file.docx">>}
@@ -502,7 +505,7 @@ test_openoffice_to_tiff_nonexistent_file() ->
 test_invalid_conversion() ->
     JobId = kz_binary:rand_hex(16),
     Src = copy_fixture_to_tmp("valid.pdf"),
-    [?_assertMatch({'error', <<"invalid conversion requested:",_/binary>>}
+    [?_assertMatch({'error', <<"invalid conversion requested:", _/binary>>}
                   ,kz_convert:fax(<<"application/pdf">>
                                  ,<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
                                  ,{'file', Src}

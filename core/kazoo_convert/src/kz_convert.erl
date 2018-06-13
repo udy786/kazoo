@@ -12,9 +12,7 @@
 
 %% @equiv fax(FromFormat, ToFormat, Content, [])
 -spec fax(kz_term:api_ne_binary(), kz_term:api_ne_binary(), binary()|{'file', filename:name()}) ->
-                 {'ok', any()}|
-                 {'ok', kz_term:ne_binary(), {integer(), non_neg_integer()}}|
-                 {'error', any()}.
+                 gen_kz_converter:converted().
 fax(FromFormat, ToFormat, Content) ->
     fax(FromFormat, ToFormat, Content, []).
 
@@ -22,7 +20,8 @@ fax(FromFormat, ToFormat, Content) ->
 %% @doc This function provides a uniform interface for selecting the module for the conversion of fax related files.
 %%
 %% The configured converter module is loaded from system_config/kazoo_convert via
-%% the parameter `fax_converter'. The default is the `kz_fax_converter' module.
+%% the parameter `fax_converter'. The default is the `kz_fax_converter' module. The
+%% behaviour for converter modules is defined in `gen_kz_converter'
 %%
 %% Arguments Description:
 %% <ul>
@@ -35,20 +34,10 @@ fax(FromFormat, ToFormat, Content) ->
 %% <li><strong>Options:</strong> a proplist of options for the underlying fax_converter.</li>
 %% </ul>
 %%
-%% Options Description:
-%% <ul>
-%% <li><strong>`<<"job_id">>':</strong> the unique ID of the job (like a fax job_id).
-%% Used for naming the output file with the extension derived from the `To' format</li>
-%% <li><strong>`<<"output_type">>':</strong> return the converted doc as a binary containing
-%% the contensts or a path to the converted file.</li>
-%% <li><strong>`<<"tmp_dir">>':</strong> the directory where the converted files are stored.</li>
-%% </ul>
 %% @end
 %%------------------------------------------------------------------------------
--spec fax(kz_term:api_ne_binary(), kz_term:api_ne_binary(), binary()|{'file', filename:name()}, kz_term:proplist()) ->
-                 {'ok', any()}|
-                 {'ok', kz_term:ne_binary(), {integer(), non_neg_integer()}}|
-                 {'error', any()}.
+-spec fax(kz_term:api_binary(), kz_term:api_binary(), binary()|{'file', filename:name()}, kz_term:proplist()) ->
+                 gen_kz_converter:converted().
 fax('undefined', _ToFormat, <<>>, _Options) ->
     {'error', <<"undefined from format">>};
 fax(_FromFormat, 'undefined', <<>>, _Options) ->
