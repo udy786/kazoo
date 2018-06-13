@@ -79,7 +79,8 @@ cmd(Command, Args, Options) ->
     monitor_cmd(Pid, Ref, CmdTimeout, 'undefined').
 
 -spec monitor_cmd(pid(), reference(), reference(), kz_term:api_port()) ->
-                 {'ok', kz_term:ne_binary()}|{'error', any(), binary()}.
+                         {'ok', kz_term:ne_binary()}|
+                         {'error', any(), binary()}.
 monitor_cmd(Pid, Ref, Timeout, Port) ->
     lager:info("~p", Ref),
     receive
@@ -91,7 +92,7 @@ monitor_cmd(Pid, Ref, Timeout, Port) ->
             lager:debug("cmd process died unexpectedly with reason: ~p", [Reason]),
             {'error', 'died_unexpectedly', <<>>};
         Else ->
-            lager:error("unexpected message ~p", [Else]),
+            lager:debug("unexpected message ~p", [Else]),
             monitor_cmd(Pid, Ref, Timeout, Port)
     after
         Timeout ->
@@ -102,7 +103,7 @@ monitor_cmd(Pid, Ref, Timeout, Port) ->
     end.
 
 -spec run_cmd(kz_term:ne_binary(), kz_term:proplist(), kz_term:proplist()) ->
-                 'no_return'.
+                     'no_return'.
 run_cmd(Command, Args, Options) ->
     OwnerPid = props:get_value(<<"owner">>, Options),
     OwnerRef = erlang:monitor('process', OwnerPid),
@@ -122,8 +123,8 @@ run_cmd(Command, Args, Options) ->
     OwnerPid ! {Out, self()}.
 
 -spec cmd_read({port(), integer(), integer(), reference()}, kz_term:binary()) ->
-                          {'ok', kz_term:ne_binary()}|
-                          {'error', atom(), kz_term:ne_binary()}.
+                      {'ok', kz_term:ne_binary()}|
+                      {'error', atom(), kz_term:ne_binary()}.
 cmd_read({Port, _MaxSize, Timeout, OwnerRef}=LoopParams, Acc) ->
     receive
         {'DOWN', OwnerRef, _, _, _}  ->
@@ -144,7 +145,7 @@ cmd_read({Port, _MaxSize, Timeout, OwnerRef}=LoopParams, Acc) ->
             cmd_read(LoopParams, Acc)
     after
         Timeout ->
-            lager:error("Timeout reached on command ~p", [Timeout]),
+            lager:debug("Timeout reached on command ~p", [Timeout]),
             _ = maybe_kill_cmd(Port),
             {'error', 'timeout', Acc}
     end.
@@ -164,7 +165,7 @@ maybe_kill_cmd('undefined') ->
 maybe_kill_cmd(Port) ->
     try erlang:port_info(Port, 'os_pid') of
         {'os_pid', OsPid} -> kill(OsPid);
-         _ -> 'ok'
+        _ -> 'ok'
     catch
         _ -> 'ok'
     end.

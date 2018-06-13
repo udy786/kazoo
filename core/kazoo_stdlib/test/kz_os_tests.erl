@@ -13,10 +13,10 @@ cmd_test_() ->
 cmd_vars_test_() ->
     [?_assertMatch({'ok', <<"hello 1\n">>}
                   ,kz_os:cmd(<<"echo $var $number">>
-                                 ,[{<<"var">>, <<"hello">>}
-                                  ,{<<"number">>, 1}
-                                  ]
-                                 )
+                            ,[{<<"var">>, <<"hello">>}
+                             ,{<<"number">>, 1}
+                             ]
+                            )
                   )
     ].
 cmd_stream_test_() ->
@@ -44,28 +44,27 @@ cmd_absolute_timeout_test_() ->
     ].
 cmd_absolute_timeout_evil_cmd_test_() ->
     [?_assertMatch({'error', 'absolute_timeout', <<>> }, kz_os:cmd(<<"yes 'stop hitting yourself'">>
-                                                               ,[]
-                                                               ,[{<<"max_size">>, 10000000}
-                                                                ,{<<"timeout">>, 1000}
-                                                                ,{<<"absolute_timeout">>, 50}
-                                                                ]
-                                                               )
+                                                                  ,[]
+                                                                  ,[{<<"max_size">>, 10000000}
+                                                                   ,{<<"timeout">>, 1000}
+                                                                   ,{<<"absolute_timeout">>, 50}
+                                                                   ]
+                                                                  )
                   )
     ].
 cmd_max_size_default_test_() ->
     [?_assertMatch({'error', 'max_size', _}, kz_os:cmd(<<"cat /dev/urandom">>
-                                                        ,[]
-                                                        ,[{<<"max_size">>, 100}
-                                                        ]
-                                                        )
+                                                      ,[]
+                                                      ,[{<<"max_size">>, 100}]
+                                                      )
                   )
     ].
 cmd_max_size_stream_test_() ->
     [?_assertMatch({'error', 'max_size', _}, kz_os:cmd(<<"cat /dev/urandom">>
-                                                         ,[]
-                                                         ,[{<<"max_size">>, 100}
-                                                          ,{<<"read_mode">>, 'stream'}
-                                                          ]
-                                                         )
+                                                      ,[]
+                                                      ,[{<<"max_size">>, 100}
+                                                       ,{<<"read_mode">>, 'stream'}
+                                                       ]
+                                                      )
                   )
     ].

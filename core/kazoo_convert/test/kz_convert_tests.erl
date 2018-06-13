@@ -566,7 +566,7 @@ test_openoffice_to_tiff_count_pages() ->
                                                       ,From
                                                       ,[{<<"job_id">>, JobId}
                                                        ,{<<"read_metadata">>, true}
-                                                      ]
+                                                       ]
                                                       )
                   )
     ].
