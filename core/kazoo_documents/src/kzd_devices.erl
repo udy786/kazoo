@@ -66,6 +66,7 @@
 -export([sip_username/1, sip_username/2, set_sip_username/2]).
 -export([suppress_unregister_notifications/1, suppress_unregister_notifications/2, set_suppress_unregister_notifications/2]).
 -export([timezone/1, timezone/2, set_timezone/2]).
+-export([is_hotdesked/1, hotdesk_ids/1, hotdesk_ids/2]).
 
 -export([fetch/2
         ,type/0
@@ -486,6 +487,23 @@ owner_id(Doc, Default) ->
 -spec set_owner_id(doc(), kz_term:ne_binary()) -> doc().
 set_owner_id(Doc, OwnerId) ->
     kz_json:set_value([<<"owner_id">>], OwnerId, Doc).
+
+-spec is_hotdesked(doc()) -> boolean().
+is_hotdesked(Doc) ->
+    not kz_json:is_empty(kz_json:get_value([<<"hotdesk">>, <<"users">>], Doc, kz_json:new())).
+
+-spec hotdesk_ids(doc()) -> kz_term:ne_binary() | 'undefined'.
+hotdesk_ids(Doc) ->
+    hotdesk_ids(Doc, 'undefined').
+
+-spec hotdesk_ids(doc(), Default) -> kz_term:ne_binary() | Default.
+hotdesk_ids(Doc, Default) ->
+    case kz_json:get_value([<<"hotdesk">>, <<"users">>], Doc) of
+        'undefined' ->
+            Default;
+        Value ->
+            kz_json:get_keys(Value)
+    end.
 
 -spec presence_id(doc()) -> kz_term:api_binary().
 presence_id(Doc) ->
