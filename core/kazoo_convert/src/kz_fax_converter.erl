@@ -269,8 +269,8 @@ maybe_delete_previous_file(Filename, Filename) ->
 maybe_delete_previous_file(OldFilename, _NewFilename) ->
     kz_util:delete_file(OldFilename).
 -spec maybe_rename_file(kz_term:ne_binary(), kz_term:ne_binary()) ->
-                                   {'ok', kz_term:ne_binary()}|
-                                   {'error', kz_term:ne_binary()}.
+                               {'ok', kz_term:ne_binary()}|
+                               {'error', kz_term:ne_binary()}.
 maybe_rename_file(TmpPath, NewPath) ->
     case filelib:is_file(NewPath) of
         'true' -> {'ok', NewPath};
@@ -278,8 +278,8 @@ maybe_rename_file(TmpPath, NewPath) ->
     end.
 
 -spec rename_file(kz_term:ne_binary(), kz_term:ne_binary()) ->
-                             {'ok', kz_term:ne_binary()}|
-                             {'error', kz_term:ne_binary()}.
+                         {'ok', kz_term:ne_binary()}|
+                         {'error', kz_term:ne_binary()}.
 rename_file(FromPath, ToPath) ->
     lager:info("renaming file from ~s to ~s", [FromPath, ToPath]),
     case filelib:is_file(FromPath) of

@@ -538,13 +538,13 @@ test_tiff_to_tiff_to_filename() ->
     From = read_test_file("valid.tiff"),
     Expected = <<"/tmp/", (kz_binary:rand_hex(16))/binary, ".tiff" >>,
     [?_assertMatch({'ok', Expected}
-                   ,kz_convert:fax(<<"image/tiff">>
-                                  ,<<"image/tiff">>
-                                  ,From
-                                  ,[{<<"job_id">>, JobId}
-                                   ,{<<"to_filename">>, Expected}
-                                   ]
-                                  )
+                  ,kz_convert:fax(<<"image/tiff">>
+                                 ,<<"image/tiff">>
+                                 ,From
+                                 ,[{<<"job_id">>, JobId}
+                                  ,{<<"to_filename">>, Expected}
+                                  ]
+                                 )
                   )
     ].
 
@@ -554,13 +554,13 @@ test_pdf_to_tiff_to_filename() ->
     From = read_test_file("valid.pdf"),
     Expected = <<"/tmp/", (kz_binary:rand_hex(16))/binary, ".tiff" >>,
     [?_assertMatch({'ok', Expected}
-                   ,kz_convert:fax(<<"application/pdf">>
-                                  ,<<"image/tiff">>
-                                  ,From
-                                  ,[{<<"job_id">>, JobId}
-                                   ,{<<"to_filename">>, Expected}
-                                   ]
-                                  )
+                  ,kz_convert:fax(<<"application/pdf">>
+                                 ,<<"image/tiff">>
+                                 ,From
+                                 ,[{<<"job_id">>, JobId}
+                                  ,{<<"to_filename">>, Expected}
+                                  ]
+                                 )
                   )
     ].
 
@@ -584,19 +584,19 @@ test_tiff_to_tiff_read_metadata() ->
     From = read_test_file("valid.tiff"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
     [?_assertMatch({'ok', Expected
-                  ,[{<<"page_count">>, 1}
-                   ,{<<"size">>, 15828}
-                   ,{<<"mimetype">>, <<"image/tiff">>}
-                   ,{<<"filetype">>, <<"tiff">>}
-                   ]
-                  }
+                   ,[{<<"page_count">>, 1}
+                    ,{<<"size">>, 15828}
+                    ,{<<"mimetype">>, <<"image/tiff">>}
+                    ,{<<"filetype">>, <<"tiff">>}
+                    ]
+                   }
                   ,kz_convert:fax(<<"image/tiff">>
-                                  ,<<"image/tiff">>
-                                  ,From
-                                  ,[{<<"job_id">>, JobId}
-                                   ,{<<"read_metadata">>, true}
-                                   ]
-                                  )
+                                 ,<<"image/tiff">>
+                                 ,From
+                                 ,[{<<"job_id">>, JobId}
+                                  ,{<<"read_metadata">>, true}
+                                  ]
+                                 )
                   )
     ].
 
@@ -606,19 +606,19 @@ test_pdf_to_tiff_read_metadata() ->
     From = read_test_file("valid.pdf"),
     Expected = <<"/tmp/", JobId/binary, ".tiff" >>,
     [?_assertMatch({'ok', Expected
-                  ,[{<<"page_count">>, 1}
-                   ,{<<"size">>, 15906}
-                   ,{<<"mimetype">>, <<"image/tiff">>}
-                   ,{<<"filetype">>, <<"tiff">>}
-                   ]
-                  }
+                   ,[{<<"page_count">>, 1}
+                    ,{<<"size">>, 15906}
+                    ,{<<"mimetype">>, <<"image/tiff">>}
+                    ,{<<"filetype">>, <<"tiff">>}
+                    ]
+                   }
                   ,kz_convert:fax(<<"application/pdf">>
-                                  ,<<"image/tiff">>
-                                  ,From
-                                  ,[{<<"job_id">>, JobId}
-                                   ,{<<"read_metadata">>, true}
-                                   ]
-                                  )
+                                 ,<<"image/tiff">>
+                                 ,From
+                                 ,[{<<"job_id">>, JobId}
+                                  ,{<<"read_metadata">>, true}
+                                  ]
+                                 )
                   )
     ].
 
@@ -631,15 +631,15 @@ test_openoffice_to_tiff_read_metadata() ->
                     ,{<<"size">>, 16803}
                     ,{<<"mimetype">>, <<"image/tiff">>}
                     ,{<<"filetype">>, <<"tiff">>}
-                   ]
+                    ]
                    }
                   ,kz_convert:fax(<<"application/vnd.openxmlformats-officedocument.wordprocessingml.document">>
-                               ,<<"image/tiff">>
-                               ,From
-                               ,[{<<"job_id">>, JobId}
-                                ,{<<"read_metadata">>, true}
-                                ]
-                               )
+                                 ,<<"image/tiff">>
+                                 ,From
+                                 ,[{<<"job_id">>, JobId}
+                                  ,{<<"read_metadata">>, true}
+                                  ]
+                                 )
                   )
     ].
 
