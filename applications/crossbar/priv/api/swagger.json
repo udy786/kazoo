@@ -4482,6 +4482,14 @@
                             "description": "Enable the call-forwarding parameters if the device is offline",
                             "type": "boolean"
                         },
+                        "hotdesk": {
+                            "description": "The hotdesk status of this device",
+                            "type": "object",
+                            "users": {
+                                "description": "The user(s) currently hotdesked into the device",
+                                "type": "object"
+                            }
+                        },
                         "ignore_early_media": {
                             "default": true,
                             "description": "The option to determine if early media from the call forwarded number should ignored",
