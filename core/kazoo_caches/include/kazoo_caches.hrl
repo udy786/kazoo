@@ -1,10 +1,13 @@
 -ifndef(KAZOO_CACHES_HRL).
 
+-include_lib("kazoo_stdlib/include/kz_types.hrl").
+
 -define(KAPPS_CONFIG_CACHE, 'kapps_config_cache').
 -define(KAPPS_CALL_CACHE, 'kapps_call_cache').
 -define(KAPPS_GETBY_CACHE, 'kapps_getby_cache').
-
--include_lib("kazoo_stdlib/include/kz_types.hrl").
+-define(KAPPS_LISTENER_CACHE, 'kapps_listener_cache').
+-define(EXPIRE_PERIOD, 10 * ?MILLISECONDS_IN_SECOND).
+-define(EXPIRE_PERIOD_MSG, 'expire_cache_objects').
 
 -type callback_fun() :: fun((any(), any(), 'flush' | 'erase' | 'expire') -> any()).
 -type callback_funs() :: [callback_fun()].
@@ -26,6 +29,22 @@
 
 -type cache_obj() :: #cache_obj{}.
 -type cache_objs() :: [cache_obj()].
+
+-record(state, {name :: atom()
+               ,tab :: ets:tab()
+               ,pointer_tab :: ets:tab()
+               ,monitor_tab :: ets:tab()
+               ,new_channel_flush = 'false' :: boolean()
+               ,channel_reconnect_flush = 'false' :: boolean()
+               ,new_node_flush = 'false' :: boolean()
+               ,expire_node_flush = 'false' :: boolean()
+               ,expire_period = ?EXPIRE_PERIOD :: timeout()
+               ,expire_period_ref :: reference()
+               ,props = [] :: kz_term:proplist()
+               ,has_monitors = 'false' :: boolean()
+               }).
+
+-type state() :: #state{}.
 
 -define(KAZOO_CACHES_HRL, 'true').
 -endif.

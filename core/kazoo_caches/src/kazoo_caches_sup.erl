@@ -45,7 +45,7 @@ start_link() ->
 %%------------------------------------------------------------------------------
 -spec init(any()) -> kz_types:sup_init_ret().
 init([]) ->
-    RestartStrategy = 'one_for_one',
+    RestartStrategy = 'one_for_all',
     MaxRestarts = 5,
     MaxSecondsBetweenRestarts = 10,
 

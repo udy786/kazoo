@@ -37,7 +37,6 @@
         ,handle_call/3
         ,handle_cast/2
         ,handle_info/2
-        ,handle_event/2
         ,terminate/2
         ,code_change/3
         ]).
@@ -46,8 +45,6 @@
 
 -define(SERVER, ?MODULE).
 -define(EXPIRES, ?SECONDS_IN_HOUR).
--define(EXPIRE_PERIOD, 10 * ?MILLISECONDS_IN_SECOND).
--define(EXPIRE_PERIOD_MSG, 'expire_cache_objects').
 
 -define(MONITOR_EXPIRE_MSG, 'monitor_cleanup').
 
@@ -68,21 +65,6 @@
                           {'callback', 'undefined' | callback_fun()}
                          ].
 -export_type([store_options/0]).
-
--record(state, {name :: atom()
-               ,tab :: ets:tab()
-               ,pointer_tab :: ets:tab()
-               ,monitor_tab :: ets:tab()
-               ,new_channel_flush = 'false' :: boolean()
-               ,channel_reconnect_flush = 'false' :: boolean()
-               ,new_node_flush = 'false' :: boolean()
-               ,expire_node_flush = 'false' :: boolean()
-               ,expire_period = ?EXPIRE_PERIOD :: timeout()
-               ,expire_period_ref :: reference()
-               ,props = [] :: kz_term:proplist()
-               ,has_monitors = 'false' :: boolean()
-               }).
--type state() :: #state{}.
 
 %%%=============================================================================
 %%% API
@@ -111,7 +93,7 @@ start_link(Name, ExpirePeriod, Props) ->
             lager:debug("started new cache process (gen_listener): ~s", [Name]),
             Bindings = [{'conf', ['federate' | P]} || P <- maybe_add_db_binding(BindingProps)],
             gen_listener:start_link({'local', Name}
-                                   ,?MODULE
+                                    ,'kz_cache_listener'
                                    ,[{'bindings', Bindings}
                                     ,{'responders', ?RESPONDERS}
                                     ,{'queue_name', ?QUEUE_NAME}
@@ -572,23 +554,6 @@ handle_info(_Info, State) ->
     {'noreply', State}.
 
 %%------------------------------------------------------------------------------
-%% @doc Allows listener to pass options to handlers.
-%% @end
-%%------------------------------------------------------------------------------
--spec handle_event(kz_json:object(), state()) -> gen_listener:handle_event_return().
-handle_event(JObj, #state{tab=Tab}=State) ->
-    case (V=kapi_conf:doc_update_v(JObj))
-        andalso (kz_api:node(JObj) =/= kz_term:to_binary(node())
-                 orelse kz_json:get_atom_value(<<"Origin-Cache">>, JObj) =/= ets:info(Tab, 'name')
-                )
-    of
-        'true' -> handle_document_change(JObj, State);
-        'false' when V -> 'ok';
-        'false' -> lager:error("payload invalid for kapi_conf: ~p", [JObj])
-    end,
-    'ignore'.
-
-%%------------------------------------------------------------------------------
 %% @doc This function is called by a `gen_server' when it is about to
 %% terminate. It should be the opposite of `Module:init/1' and do any
 %% necessary cleaning up. When it returns, the `gen_server' terminates
@@ -857,91 +822,6 @@ maybe_update_expire_period(#state{expire_period=ExpirePeriod
                ,expire_period_ref=NewRef
                };
 maybe_update_expire_period(State, _Expires) -> State.
-
--spec handle_document_change(kz_json:object(), state()) -> 'ok' | 'false'.
-handle_document_change(JObj, State) ->
-    'true' = kapi_conf:doc_update_v(JObj),
-
-    Db = kz_json:get_value(<<"Database">>, JObj),
-    Type = kz_json:get_value(<<"Type">>, JObj),
-    Id = kz_json:get_value(<<"ID">>, JObj),
-
-    _Keys = handle_document_change(Db, Type, Id, State),
-    _Keys =/= []
-        andalso lager:debug("removed ~p keys for ~s/~s/~s", [length(_Keys), Db, Id, Type]).
-
--spec handle_document_change(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary(), state()) ->
-                                    list().
-handle_document_change(Db, <<"database">>, _Id, #state{pointer_tab=PTab}=State) ->
-    MatchSpec = match_db_changed(Db),
-    lists:foldl(fun(Obj, Removed) ->
-                        erase_changed(Obj, Removed, State)
-                end
-               ,[]
-               ,ets:select(PTab, MatchSpec)
-               );
-handle_document_change(Db, Type, Id
-                      ,#state{pointer_tab=PTab}=State
-                      ) ->
-    MatchSpec = match_doc_changed(Db, Type, Id),
-    Objects = ets:select(PTab, MatchSpec),
-
-    lists:foldl(fun(Obj, Removed) ->
-                        erase_changed(Obj, Removed, State)
-                end
-               ,[]
-               ,Objects
-               ).
-
--spec match_db_changed(kz_term:ne_binary()) -> ets:match_spec().
-match_db_changed(Db) ->
-    [{#cache_obj{origin = {'db', Db}, _ = '_'}
-     ,[]
-     ,['$_']
-     }
-    ,{#cache_obj{origin = {'db', Db, '_'}, _ = '_'}
-     ,[]
-     ,['$_']
-     }
-    ,{#cache_obj{origin = {'type', <<"database">>, Db}, _ = '_'}
-     ,[]
-     ,['$_']
-     }
-    ].
-
--spec match_doc_changed(kz_term:ne_binary(), kz_term:ne_binary(), kz_term:ne_binary()) -> ets:match_spec().
-match_doc_changed(Db, Type, Id) ->
-    [{#cache_obj{origin = {'db', Db}, _ = '_'}
-     ,[]
-     ,['$_']
-     }
-    ,{#cache_obj{origin = {'db', Db, Type}, _ = '_'}
-     ,[]
-     ,['$_']
-     }
-    ,{#cache_obj{origin = {'db', Db, Id}, _ = '_'}
-     ,[]
-     ,['$_']
-     }
-    ,{#cache_obj{origin = {'type', Type, Id}, _ = '_'}
-     ,[]
-     ,['$_']
-     }
-    ,{#cache_obj{origin = {'type', Type}, _ = '_'}
-     ,[]
-     ,['$_']
-     }
-    ].
-
--spec erase_changed(cache_obj(), list(), state()) -> list().
-erase_changed(#cache_obj{key=Key}, Removed, State) ->
-    case lists:member(Key, Removed) of
-        'true' -> Removed;
-        'false' ->
-            lager:debug("removing updated cache object ~-300p", [Key]),
-            'true' = erase_changed(Key, State),
-            [Key | Removed]
-    end.
 
 -spec erase_changed(any(), state()) -> 'true'.
 erase_changed(Key, #state{tab=Tab
