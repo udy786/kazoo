@@ -24,6 +24,20 @@
                     "support_level": "supported",
                     "type": "boolean"
                 },
+                "hotdesk": {
+                    "description": "The hotdesk status of this device",
+                    "type": "object",
+                    "users": {
+                        "description": "The user(s) currently hotdesked into the device",
+                        "patternProperties": {
+                            "^[a-zA-Z0-9]{32}$": {
+                                "description": "user-specific hotdesk settings",
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
                 "ignore_early_media": {
                     "default": true,
                     "description": "The option to determine if early media from the call forwarded number should ignored",
