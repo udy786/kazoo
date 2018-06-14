@@ -16,6 +16,7 @@ Key | Description | Type | Default | Required | Support Level
 `call_forward.direct_calls_only` | Determines if the calls that are not directly sent to the device should be forwarded | `boolean()` | `false` | `false` |  
 `call_forward.enabled` | Determines if the call forwarding should be used | `boolean()` | `false` | `false` |  
 `call_forward.failover` | Enable the call-forwarding parameters if the device is offline | `boolean()` | `false` | `false` |  
+`call_forward.hotdesk` | The hotdesk status of this device | `object()` |   | `false` |  
 `call_forward.ignore_early_media` | The option to determine if early media from the call forwarded number should ignored | `boolean()` | `true` | `false` |  
 `call_forward.keep_caller_id` | Determines if the caller id is kept when the call is forwarded, if not the devices caller id is used | `boolean()` | `true` | `false` |  
 `call_forward.number` | The number to forward calls to | `string(0..15)` |   | `false` |  
